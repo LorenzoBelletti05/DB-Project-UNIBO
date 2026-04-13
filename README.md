@@ -1,2 +1,2 @@
 # DB-Project-UNIBO
-The repository thath contains the Data base project
+The repository that contains the Data base project
