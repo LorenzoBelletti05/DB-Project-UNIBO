@@ -1,0 +1,8 @@
+*.db-journal
+*.db-wal
+*.db-shm
+*.tmp
+Schema_ER/*.db-journal
+Schema_ER/*.db-wal
+Schema_ER/*.db-shm
+*~
