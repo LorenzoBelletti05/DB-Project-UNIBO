@@ -1,8 +1,54 @@
+# ========================================
+# Ambienti Virtuali (FONDAMENTALE)
+# ========================================
+venv/
+env/
+.venv/
+
+# ========================================
+# File di sistema di Python
+# ========================================
+__pycache__/
+*.py[cod]
+*$py.class
+
+# ========================================
+# Variabili d'ambiente e Segreti
+# (Mai caricare password o chiavi API su Git!)
+# ========================================
+.env
+.flaskenv
+
+# ========================================
+# Cartelle specifiche di Flask
+# ========================================
+# Flask usa spesso questa cartella per database locali e file di configurazione privati
+instance/
+
+# ========================================
+# Database (Le tue regole personalizzate)
+# ========================================
+# (Opzionale: decommenta le righe sotto se non vuoi caricare nemmeno il file .db principale su Git)
+# *.db
+# *.sqlite
+# *.sqlite3
+
+# File temporanei di SQLite
 *.db-journal
 *.db-wal
 *.db-shm
 *.tmp
+*~
+
+# File temporanei della cartella Schema_ER
 Schema_ER/*.db-journal
 Schema_ER/*.db-wal
 Schema_ER/*.db-shm
-*~
+
+# ========================================
+# IDE e file di Sistema Operativo
+# ========================================
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
