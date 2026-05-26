@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3>🔧 Gestione Officina</h3>
+    <button class="btn btn-warning text-dark">+ Nuovo Intervento</button>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <table class="table table-striped table-hover m-0">
+            <thead class="table-dark">
+                <tr>
+                    <th>ID Intervento</th>
+                    <th>Data Inizio</th>
+                    <th>Targa Veicolo</th>
+                    <th>Tipo Intervento</th>
+                    <th>Cliente</th>
+                    <th>Stato</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for int in interventi %}
+                <tr>
+                    <td>#{{ int.id }}</td>
+                    <td>{{ int.data }}</td>
+                    <td><strong>{{ int.targa }}</strong></td>
+                    <td>{{ int.tipo }}</td>
+                    <td>{{ int.cliente }}</td>
+                    <td>
+                        <span class="badge {% if int.stato == 'In Corso' %}bg-primary{% else %}bg-info text-dark{% endif %}">
+                            {{ int.stato }}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

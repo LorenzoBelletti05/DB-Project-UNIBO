@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3>🚗 Inventario Auto</h3>
+    <button class="btn btn-primary">+ Aggiungi Veicolo</button>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <table class="table table-striped table-hover m-0">
+            <thead class="table-dark">
+                <tr>
+                    <th>Telaio</th>
+                    <th>Modello</th>
+                    <th>Targa</th>
+                    <th>Prezzo Base</th>
+                    <th>Km</th>
+                    <th>Stato</th>
+                    <th>Azioni</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for auto in veicoli %}
+                <tr>
+                    <td>{{ auto.telaio }}</td>
+                    <td><strong>{{ auto.modello }}</strong></td>
+                    <td>{{ auto.targa }}</td>
+                    <td>€ {{ auto.prezzo }}</td>
+                    <td>{{ auto.km }}</td>
+                    <td>
+                        <span class="badge {% if auto.stato == 'Disponibile' %}bg-success{% elif auto.stato == 'In Vendita' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                            {{ auto.stato }}
+                        </span>
+                    </td>
+                    <td><button class="btn btn-sm btn-outline-primary">Dettagli</button></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
