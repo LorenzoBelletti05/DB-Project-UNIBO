@@ -1,90 +1,125 @@
-# Backend/app/routes.py
-from flask import render_template, jsonify
-from app import app
-from app.db import get_db_connection  # Già pronto per quando collegherete SQL!
+from functools import wraps
+from flask import Blueprint, render_template, request, redirect, session, flash
+from .db import supabase 
 
-@app.route('/')
-def dashboard():
-    # ==========================================
-    # 1. KPI (Key Performance Indicators)
-    # ==========================================
-    # SUGGERIMENTO SQL PER IL BACKEND:
-    # conn = get_db_connection()
-    # cursor = conn.cursor()
-    # cursor.execute("SELECT COUNT(*) FROM VEICOLO WHERE Stato_Disponibilita = 'D';")
-    # ...
-    kpi_data = {
-        'auto_disponibili': 115,
-        'vendite_mese': 42,
-        'clienti_registrati': 890,
-        'interventi_oggi': 18
-    }
+main = Blueprint('main', __name__)
 
-    # ==========================================
-    # 2. DATI GRAFICI
-    # ==========================================
-    grafico_modelli = {
-        'labels': ['Panda', 'Giulietta', 'Giulia', '500', 'Stelvio'],
-        'data': [90, 75, 55, 45, 30]
-    }
+# --- DECORATORE PER PROTEZIONE ROTTE ---
+def ruolo_richiesto(ruolo_necessario):
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            # Controlla se l'utente è loggato e se il ruolo corrisponde
+            if 'ruolo' not in session or session['ruolo'] != ruolo_necessario:
+                flash("Non hai i permessi necessari per accedere a quest'area.", "danger")
+                return redirect('/login')
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
 
-    # ==========================================
-    # 3. TABELLE DATI RECENTI (Mock Data)
-    # ==========================================
-    preventivi_recenti = [
-        {'id': 'P001', 'cliente': 'Mario Rossi', 'auto': 'Panda', 'data': '15/05/2026', 'stato': 'Aperto'},
-        {'id': 'P002', 'cliente': 'Luca Bianchi', 'auto': 'Giulia', 'data': '14/05/2026', 'stato': 'Chiuso'},
-        {'id': 'P003', 'cliente': 'Giulia Verdi', 'auto': 'Giulietta', 'data': '14/05/2026', 'stato': 'Aperto'},
-    ]
+# --- ROTTA LOGIN ---
+@main.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        password = request.form.get('password')
 
-    contratti_scadenza = [
-        {'id': 'C899', 'tipo': 'Noleggio', 'cliente': 'Azienda SPA', 'scadenza': '20/05/2026'},
-        {'id': 'C901', 'tipo': 'Leasing', 'cliente': 'Marco Neri', 'scadenza': '22/05/2026'},
-    ]
+        try:
+            # QUERY: Ricerca utente usando 'Mail' (maiuscola come nel DB)
+            response = supabase.table('PERSONA').select('*').eq('Mail', email).execute()
+            utenti = response.data
 
-    officina_oggi = [
-        {'id': 'INT-10', 'auto': 'AB123CD', 'tipo': 'Tagliando', 'cliente': 'Luigi Gialli', 'stato': 'In lavorazione'},
-        {'id': 'INT-11', 'auto': 'EF456GH', 'tipo': 'Riparazione', 'cliente': 'Anna Bruni', 'stato': 'In attesa'},
-    ]
+            if not utenti:
+                flash("Account inesistente. Registrati.", "warning")
+                return redirect('/login')
+                
+            utente = utenti[0]
+            # Controllo password (usando 'Password' come da DB)
+            if utente['Password'] == password:
+                session['user_id'] = utente['ID_Persona']
+                session['ruolo'] = utente['Ruolo'] 
+                session['nome'] = utente['Nome']
 
-    return render_template(
-        'dashboard.html', 
-        kpi=kpi_data, 
-        preventivi=preventivi_recenti, 
-        contratti=contratti_scadenza, 
-        officina=officina_oggi,
-        grafico_modelli=grafico_modelli
-    )
+                # SMISTAMENTO
+                if utente['Ruolo'] == 4:
+                    return redirect('/dashboard_admin')
+                elif utente['Ruolo'] == 1:
+                    return redirect('/area_cliente')
+                else:
+                    return redirect('/')
+            else:
+                flash("Password errata.", "danger")
+                return redirect('/login')
 
-# ==========================================
-# ROTTE PER LE ALTRE PAGINE
-# ==========================================
+        except Exception as e:
+            print(f"ERRORE LOGIN: {str(e)}")
+            flash("Errore di connessione.", "danger")
+            return redirect('/login')
 
-@app.route('/inventario')
-def inventario():
-    auto_db = [
-        {'telaio': 'ZAR1234567890ABCD', 'modello': 'Giulia', 'targa': 'AB123CD', 'prezzo': 35000, 'stato': 'Disponibile', 'km': 0},
-        {'telaio': 'ZFA0987654321WXYZ', 'modello': 'Panda', 'targa': 'EF456GH', 'prezzo': 12000, 'stato': 'In Vendita', 'km': 15000}
-    ]
-    return render_template('inventario.html', veicoli=auto_db)
+    return render_template('login/login.html')
 
-@app.route('/officina')
-def officina():
-    interventi_db = [
-        {'id': 101, 'data': '26/05/2026', 'targa': 'AB123CD', 'tipo': 'Tagliando', 'cliente': 'Mario Rossi', 'stato': 'In Corso'}
-    ]
-    return render_template('officina.html', interventi=interventi_db)
+# --- ROTTA REGISTRAZIONE ---
+@main.route('/registrazione', methods=['POST'])
+def registrazione():
+    try:
+        mail = request.form.get('mail')
+        # Controllo esistenza
+        controllo = supabase.table('PERSONA').select('*').eq('Mail', mail).execute()
+        if len(controllo.data) > 0:
+            flash("Email già registrata.", "info")
+            return redirect('/login')
+            
+        # Formattazione Residenza (Unione campi per colonna unica varchar(50))
+        residenza = f"{request.form.get('via')} {request.form.get('civico')}, {request.form.get('cap')} {request.form.get('citta')} ({request.form.get('provincia')})"
+        
+        nuovo_utente = {
+            "Nome": request.form.get('nome'),
+            "Cognome": request.form.get('cognome'),
+            "CF": request.form.get('cf'),
+            "Numero_Passaporto": request.form.get('passaporto'),
+            "Residenza": residenza[:50],
+            "Telefono": request.form.get('telefono'),
+            "Mail": mail,
+            "Password": request.form.get('password'),
+            "Ruolo": 1  # 1 = Cliente
+        }
+        
+        supabase.table('PERSONA').insert(nuovo_utente).execute()
+        flash("Registrazione completata! Ora puoi accedere.", "success")
+        return redirect('/login')
+        
+    except Exception as e:
+        print(f"ERRORE REGISTRAZIONE: {str(e)}")
+        flash("Errore nel salvataggio dati.", "danger")
+        return redirect('/login')
 
-@app.route('/contratti')
-def contratti():
-    contratti_db = [
-        {'id': 'C-1001', 'tipo': 'Finanziamento', 'data': '10/05/2026', 'importo': 25000.00, 'cliente': 'Giulia Verdi'}
-    ]
-    return render_template('contratti.html', contratti=contratti_db)
+# --- ROTTE PROTETTE ---
+@main.route('/')
+def home():
+    if 'user_id' not in session: return redirect('/login')
+    # Smistamento centrale
+    if session['ruolo'] == 4: return redirect('/dashboard_admin')
+    if session['ruolo'] == 1: return redirect('/area_cliente')
+    return "Benvenuto!"
 
-@app.route('/clienti')
-def clienti():
-    clienti_db = [
-        {'id': 1, 'nome': 'Mario Rossi', 'telefono': '333-1234567', 'email': 'mario@email.it', 'citta': 'Milano'}
-    ]
-    return render_template('clienti.html', clienti=clienti_db)
+@main.route('/dashboard_admin')
+@ruolo_richiesto(4)
+def dashboard_admin():
+    return render_template('admin/dashboard.html')
+
+@main.route('/area_cliente')
+@ruolo_richiesto(1) 
+def area_cliente():
+    # Modifica qui in base a dove si trova effettivamente il tuo file
+    return render_template('dashboard/dashboard.html')
+
+@main.route('/admin/utenti')
+@ruolo_richiesto(4)
+def gestione_utenti():
+    response = supabase.table('PERSONA').select('*').execute()
+    return render_template('admin_utenti.html', utenti=response.data)
+
+@main.route('/logout')
+def logout():
+    session.clear()
+    return redirect('/login')

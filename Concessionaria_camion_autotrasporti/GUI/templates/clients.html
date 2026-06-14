@@ -1,37 +1,68 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h3>👥 Anagrafica Clienti</h3>
-    <button class="btn btn-info text-white">+ Registra Cliente</button>
-</div>
-
-<div class="card shadow-sm">
-    <div class="card-body p-0">
-        <table class="table table-striped table-hover m-0">
-            <thead class="table-dark">
-                <tr>
-                    <th>ID</th>
-                    <th>Nome e Cognome</th>
-                    <th>Telefono</th>
-                    <th>Email</th>
-                    <th>Città</th>
-                    <th>Azioni</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for cli in clienti %}
-                <tr>
-                    <td>{{ cli.id }}</td>
-                    <td><strong>{{ cli.nome }}</strong></td>
-                    <td>{{ cli.telefono }}</td>
-                    <td>{{ cli.email }}</td>
-                    <td>{{ cli.citta }}</td>
-                    <td><button class="btn btn-sm btn-outline-secondary">Modifica</button></td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+<div class="card shadow-sm border-0">
+    <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center py-3">
+        <h5 class="mb-0 text-primary fw-bold">Anagrafica Utenti</h5>
+        <!-- Funzionalità Admin: Aggiungere nuovi lavoratori -->
+        <button class="btn btn-primary btn-sm">
+            + Aggiungi Lavoratore
+        </button>
+    </div>
+    
+    <div class="card-body">
+        <div class="table-responsive">
+            <!-- Tabella interattiva con stile Bootstrap -->
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Nome</th>
+                        <th>Cognome</th>
+                        <th>Email</th>
+                        <th>Ruolo</th>
+                        <th>Stato</th>
+                        <th>Azioni Admin</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Ciclo Jinja2 sui dati provenienti da Supabase -->
+                    {% for utente in utenti %}
+                    <tr>
+                        <td>{{ utente.nome }}</td>
+                        <td>{{ utente.cognome }}</td>
+                        <td>{{ utente.email }}</td>
+                        <td>
+                            <!-- Badge colorati in base al ruolo -->
+                            <span class="badge bg-secondary">{{ utente.ruolo }}</span>
+                        </td>
+                        <td>
+                            <!-- Controllo stato per il badge BLOCCO -->
+                            {% if utente.stato == 'BLOCCO' %}
+                                <span class="badge bg-danger">BLOCCATO</span>
+                            {% else %}
+                                <span class="badge bg-success">ATTIVO</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <!-- Funzionalità Admin: Mettere in BLOCCO -->
+                            <form method="POST" action="/admin/blocca_utente/{{ utente.id }}" style="display:inline;">
+                                <button type="submit" class="btn btn-warning btn-sm text-dark">
+                                    Blocca
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <!-- Messaggio se la tabella Supabase è vuota -->
+                    <tr>
+                        <td colspan="6" class="text-center py-4 text-muted">
+                            Nessun utente trovato nel database.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 {% endblock %}

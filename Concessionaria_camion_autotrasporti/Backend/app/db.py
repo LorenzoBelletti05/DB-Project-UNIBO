@@ -1,26 +1,15 @@
 import os
-import psycopg2
-from psycopg2.extras import RealDictCursor
+from supabase import create_client, Client
 from dotenv import load_dotenv
 
-# Carica le variabili dal file .env
-load_dotenv()
+# Carica le variabili d'ambiente dal file .env situato nella cartella genitore
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'))
 
-# Prendi la stringa di connessione in modo sicuro
-DATABASE_URI = os.getenv("DATABASE_URL")
+url = os.environ.get("SUPABASE_URL")
+key = os.environ.get("SUPABASE_KEY")
 
-def get_db_connection():
-    """Crea e restituisce una connessione a Supabase."""
-    if not DATABASE_URI:
-        raise ValueError("Errore critico: DATABASE_URL non trovato nel file .env!")
-    
-    try:
-        # Ci connettiamo al database in cloud
-        conn = psycopg2.connect(DATABASE_URI)
-        
-        # Restituisce i risultati come dizionari (es. riga['targa'])
-        conn.cursor_factory = RealDictCursor 
-        return conn
-    except psycopg2.Error as e:
-        print(f"Errore di connessione al database: {e}")
-        return None
+if not url or not key:
+    raise ValueError("Credenziali Supabase mancanti. Controlla il file .env")
+
+# Inizializza il client Supabase
+supabase: Client = create_client(url, key)
