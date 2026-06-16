@@ -10,7 +10,8 @@
             <a class="navbar-brand" href="/">AutoGest PRO</a>
             <div class="navbar-nav ms-auto">
                 {% if session.get('ruolo') == 4 %}
-                    <a class="nav-link" href="/admin/utenti">Gestione Utenti</a>
+                    <a class="nav-link" href="/admin/add_crew">Gestione Utenti</a> 
+                    <a class="nav-link" href="/admin/catalog">Gestione Catalogo</a>
                 {% elif session.get('ruolo') == 1 %}
                     <a class="nav-link" href="/area_cliente">La mia Area</a>
                 {% endif %}

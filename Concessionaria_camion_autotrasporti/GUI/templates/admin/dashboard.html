@@ -1,0 +1,128 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Pannello di Controllo - Direzione</h2>
+        <a href="/admin/add_crew" class="btn btn-primary">+ Nuovo Dipendente</a>
+    </div>
+
+    <!-- Sezione KPI (Key Performance Indicators) -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card text-white bg-success shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Veicoli in Catalogo</h5>
+                    <h2 class="mb-0">124</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-white bg-info shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Interventi Aperti</h5>
+                    <h2 class="mb-0">18</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-white bg-warning shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Valutazioni in Sospeso</h5>
+                    <h2 class="mb-0">5</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sezione Grafici (Business Intelligence) -->
+    <div class="row">
+        <!-- Grafico: Performance Venditori (Query 5.1.17) -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white fw-bold">
+                    Migliori Venditori (Ricavi)
+                </div>
+                <div class="card-body">
+                    <canvas id="chartVenditori"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Grafico: Modelli più venduti (Query 5.1.16) -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white fw-bold">
+                    Modelli più Venduti
+                </div>
+                <div class="card-body">
+                    <canvas id="chartModelli"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Script per inizializzare i grafici con Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // 1. Leggiamo i dati puliti da Python in modo semplice
+    // E METTI QUESTE:
+    let labelsVenditori = {{ labels_venditori | tojson }};
+    let datiVenditori = {{ valori_venditori | tojson }};
+    let labelsModelli = {{ labels_modelli | tojson }};
+    let datiModelli = {{ valori_modelli | tojson }};
+
+    // 2. RETE DI SICUREZZA IN JAVASCRIPT
+    // Se Python ci ha mandato liste vuote, inseriamo noi i valori di default
+    if (labelsVenditori.length === 0) {
+        labelsVenditori = ['Nessun dato'];
+        datiVenditori = [0];
+    }
+    
+    if (labelsModelli.length === 0) {
+        labelsModelli = ['Nessun dato'];
+        datiModelli = [1]; // Mettiamo 1 per far apparire almeno un cerchio grigio
+    }
+
+    // 3. DISEGNO GRAFICO 1: Venditori (Bar Chart)
+    const ctxVenditori = document.getElementById('chartVenditori').getContext('2d');
+    new Chart(ctxVenditori, {
+        type: 'bar',
+        data: {
+            labels: labelsVenditori,
+            datasets: [{
+                label: 'Veicoli Venduti',
+                data: datiVenditori,
+                backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: { 
+            scales: { 
+                y: { beginAtZero: true, ticks: { stepSize: 1 } } 
+            } 
+        }
+    });
+
+    // 4. DISEGNO GRAFICO 2: Modelli (Doughnut Chart)
+    const ctxModelli = document.getElementById('chartModelli').getContext('2d');
+    new Chart(ctxModelli, {
+        type: 'doughnut',
+        data: {
+            labels: labelsModelli,
+            datasets: [{
+                data: datiModelli,
+                backgroundColor: [
+                    'rgba(255, 99, 132, 0.6)', 
+                    'rgba(75, 192, 192, 0.6)',
+                    'rgba(255, 206, 86, 0.6)', 
+                    'rgba(153, 102, 255, 0.6)',
+                    'rgba(201, 203, 207, 0.6)' // Grigio di default
+                ]
+            }]
+        }
+    });
+</script>
+{% endblock %}

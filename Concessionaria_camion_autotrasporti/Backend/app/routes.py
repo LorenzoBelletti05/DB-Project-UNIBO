@@ -103,9 +103,39 @@ def home():
     return "Benvenuto!"
 
 @main.route('/dashboard_admin')
-@ruolo_richiesto(4)
+@ruolo_richiesto(4) 
 def dashboard_admin():
-    return render_template('admin/dashboard.html')
+    try:
+        # 1. Recupero dati per il Grafico dei Modelli (Query 5.1.16)
+        res_modelli = supabase.table('vista_modelli_venduti').select('*').execute()
+        dati_modelli = res_modelli.data
+
+        # 2. Recupero dati per il Grafico dei Venditori (Query 5.1.17)
+        res_venditori = supabase.table('vista_performance_venditori').select('*').execute()
+        dati_venditori = res_venditori.data
+
+        # 3. Creiamo le liste da passare all'HTML
+        labels_modelli = [riga['Modello'] for riga in dati_modelli]
+        valori_modelli = [riga['totale_vendite'] for riga in dati_modelli]
+
+        labels_venditori = [riga['venditore'] for riga in dati_venditori]
+        valori_venditori = [riga['totale_vendite'] for riga in dati_venditori]
+
+    except Exception as e:
+        # SE C'È UN ERRORE (es. viste SQL non ancora create),
+        # CREIAMO LISTE VUOTE PER NON FAR CRASHARE L'HTML!
+        print(f"ERRORE GRAFICI: {str(e)}")
+        labels_modelli = []
+        valori_modelli = []
+        labels_venditori = []
+        valori_venditori = []
+
+    # 4. INVIAMO TUTTO ALLA PAGINA HTML (Questa è la riga che mancava o era sbagliata!)
+    return render_template('admin/dashboard.html', 
+                           labels_modelli=labels_modelli, 
+                           valori_modelli=valori_modelli,
+                           labels_venditori=labels_venditori,
+                           valori_venditori=valori_venditori)
 
 @main.route('/area_cliente')
 @ruolo_richiesto(1) 
@@ -123,3 +153,82 @@ def gestione_utenti():
 def logout():
     session.clear()
     return redirect('/login')
+
+@main.route('/admin/add_crew', methods=['GET', 'POST'])
+@ruolo_richiesto(4)  # Solo il Proprietario/Admin può assumere!
+def add_crew():
+    if request.method == 'POST':
+        # 1. Raccogliamo i dati dal form
+        ruolo_scelto = int(request.form.get('ruolo')) # Sarà 2, 3 o 5
+        mail = request.form.get('mail')
+        
+        try:
+            # 2. Controllo se la mail esiste già
+            controllo = supabase.table('PERSONA').select('*').eq('Mail', mail).execute()
+            if len(controllo.data) > 0:
+                flash("Errore: Email già presente nel sistema.", "danger")
+                return redirect('/admin/add_crew')
+            
+            # 3. Prepariamo i dati per la tabella PERSONA
+            nuovo_dipendente = {
+                "Nome": request.form.get('nome'),
+                "Cognome": request.form.get('cognome'),
+                "CF": request.form.get('cf'),
+                "Residenza": request.form.get('residenza')[:50],
+                "Telefono": request.form.get('telefono'),
+                "Mail": mail,
+                "Password": request.form.get('password'),
+                "Ruolo": ruolo_scelto 
+            }
+            
+            # 4. Inserimento nel Database
+            # (Nota: Più avanti aggiungeremo anche l'inserimento automatico nella 
+            # tabella LAVORATORE e relative specializzazioni come da tuo ER)
+            supabase.table('PERSONA').insert(nuovo_dipendente).execute()
+            
+            flash(f"Dipendente {nuovo_dipendente['Nome']} aggiunto con successo!", "success")
+            return redirect('/dashboard_admin')
+            
+        except Exception as e:
+            print(f"ERRORE ASSUNZIONE: {str(e)}")
+            flash("Errore durante l'inserimento nel database.", "danger")
+            return redirect('/admin/add_crew')
+
+    # Se è una richiesta GET, mostriamo semplicemente il modulo
+    return render_template('admin/add_crew.html')
+
+@main.route('/admin/catalog', methods=['GET', 'POST'])
+@ruolo_richiesto(4) 
+def gestione_catalogo():
+    if request.method == 'POST':
+        # --- GESTIONE INSERIMENTO NUOVA MARCA ---
+        if 'aggiungi_marca' in request.form:
+            nome_marca = request.form.get('nome_marca')
+            try:
+                # Inseriamo la nuova marca in Supabase (Attiva di default 'Y')
+                supabase.table('MARCA').insert({
+                    "Nome": nome_marca,
+                    "Attiva": "Y"
+                }).execute()
+                flash(f"Marca {nome_marca} aggiunta con successo!", "success")
+            except Exception as e:
+                print(f"ERRORE MARCA: {e}")
+                flash("Errore durante l'inserimento della marca.", "danger")
+            
+            return redirect('/admin/catalog')
+
+    # --- RECUPERO DATI PER LA VISUALIZZAZIONE ---
+    try:
+        # Recuperiamo tutte le marche
+        res_marche = supabase.table('MARCA').select('*').execute()
+        lista_marche = res_marche.data
+
+        # Recuperiamo tutti i veicoli (con i dati della marca uniti se possibile)
+        res_veicoli = supabase.table('VEICOLO').select('*').execute()
+        lista_veicoli = res_veicoli.data
+    except Exception as e:
+        print(f"ERRORE LETTURA CATALOGO: {e}")
+        lista_marche = []
+        lista_veicoli = []
+
+    return render_template('admin/catalog.html', marche=lista_marche, veicoli=lista_veicoli)
