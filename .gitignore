@@ -16,7 +16,7 @@ __pycache__/
 # Variabili d'ambiente e Segreti
 # (Mai caricare password o chiavi API su Git!)
 # ========================================
-.env
+
 .flaskenv
 
 # ========================================
