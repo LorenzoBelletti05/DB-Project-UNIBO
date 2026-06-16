@@ -8,13 +8,21 @@
     <nav class="navbar navbar-expand-lg navbar-light bg-light shadow-sm mb-4">
         <div class="container">
             <a class="navbar-brand" href="/">AutoGest PRO</a>
-            <div class="navbar-nav ms-auto">
+            <div class="navbar-nav ms-auto align-items-center">
+                
                 {% if session.get('ruolo') == 4 %}
-                    <a class="nav-link" href="/admin/add_crew">Gestione Utenti</a> 
-                    <a class="nav-link" href="/admin/catalog">Gestione Catalogo</a>
+                    <a class="nav-link" href="/admin/utenti">Gestione Utenti</a>
+                
                 {% elif session.get('ruolo') == 1 %}
                     <a class="nav-link" href="/area_cliente">La mia Area</a>
+                    <a class="nav-link fw-bold text-primary" href="/catalog">📖 Public Catalog</a>
+                
+                {% elif session.get('ruolo') == 2 %}
+                    <a class="nav-link" href="/catalog">📖 Public Catalog</a>
+                    <a class="nav-link" href="/salesperson">💼 Sales Dashboard</a>
+                    <a class="nav-link" href="/transaction_wizard">📝 New Transaction</a>
                 {% endif %}
+                
                 <a href="/logout" class="btn btn-outline-danger btn-sm ms-3">Esci</a>
             </div>
         </div>

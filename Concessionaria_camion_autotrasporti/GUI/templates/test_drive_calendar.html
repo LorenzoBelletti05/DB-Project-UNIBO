@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
+    <h2 class="h3 text-primary mb-0">Test Drive Calendar</h2>
+    <button class="btn btn-primary fw-bold">+ New Booking</button>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-4">
+        <div id="calendar"></div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var calendarEl = document.getElementById('calendar');
+        
+        // Calcoliamo la data di oggi per i dati fittizi
+        var today = new Date().toISOString().split('T')[0];
+
+        var calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'timeGridWeek', // Vista settimanale con orari
+            slotMinTime: '08:00:00',     // Orario di apertura
+            slotMaxTime: '19:00:00',     // Orario di chiusura
+            allDaySlot: false,           // Nasconde la riga degli eventi "tutto il giorno"
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek,timeGridDay'
+            },
+            // Dati fittizi: verranno sostituiti dai dati di Supabase tramite Python
+            events: [
+                {
+                    title: 'Test Drive: FH16 (Booked)',
+                    start: today + 'T10:00:00',
+                    end: today + 'T11:00:00',
+                    backgroundColor: '#dc3545', // Rosso per occupato
+                    borderColor: '#dc3545'
+                },
+                {
+                    title: 'Test Drive: Stralis (Booked)',
+                    start: today + 'T14:30:00',
+                    end: today + 'T15:30:00',
+                    backgroundColor: '#dc3545',
+                    borderColor: '#dc3545'
+                },
+                {
+                    title: 'Available Slot',
+                    start: today + 'T16:00:00',
+                    end: today + 'T17:00:00',
+                    backgroundColor: '#28a745', // Verde per libero
+                    borderColor: '#28a745'
+                }
+            ]
+        });
+        
+        calendar.render();
+    });
+</script>
+
+<style>
+    /* Piccole modifiche CSS per rendere il calendario più elegante */
+    .fc-theme-standard th {
+        background-color: #f8f9fa;
+        padding: 10px 0;
+        font-weight: bold;
+        color: #2c3e50;
+    }
+    .fc-event {
+        cursor: pointer;
+        border-radius: 4px;
+        border: none;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .fc .fc-toolbar-title {
+        font-size: 1.5em;
+        color: #0d6efd;
+    }
+    .fc-button-primary {
+        background-color: #0d6efd !important;
+        border-color: #0d6efd !important;
+    }
+</style>
+{% endblock %}

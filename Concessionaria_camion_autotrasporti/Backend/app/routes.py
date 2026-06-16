@@ -238,3 +238,25 @@ def gestione_catalogo():
         lista_marche, lista_veicoli = [], []
 
     return render_template('admin/catalog.html', marche=lista_marche, veicoli=lista_veicoli)
+
+@main.route('/catalog', methods=['GET'])
+def public_catalog():
+    vehicles = []
+    brands = []
+    return render_template('public_catalog.html', vehicles=vehicles, brands=brands)
+
+@main.route('/salesperson', methods=['GET'])
+def salesperson_dashboard():
+    quotes = []
+    test_drives = []
+    return render_template('salesperson_dashboard.html', quotes=quotes, test_drives=test_drives)
+
+@main.route('/transaction_wizard', methods=['GET'])
+def transaction_wizard():
+    available_vehicles = []
+    return render_template('transaction_wizard.html', available_vehicles=available_vehicles)
+
+@main.route('/test_drive_calendar', methods=['GET'])
+def test_drive_calendar():
+    # Qui in futuro faremo la query per prendere le prenotazioni reali
+    return render_template('test_drive_calendar.html')
