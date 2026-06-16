@@ -201,34 +201,40 @@ def add_crew():
 @ruolo_richiesto(4) 
 def gestione_catalogo():
     if request.method == 'POST':
-        # --- GESTIONE INSERIMENTO NUOVA MARCA ---
-        if 'aggiungi_marca' in request.form:
+        
+        # --- 1. GESTIONE INSERIMENTO MARCA ---
+        if 'aggiungi_marca' in request.form: 
             nome_marca = request.form.get('nome_marca')
             try:
-                # Inseriamo la nuova marca in Supabase (Attiva di default 'Y')
-                supabase.table('MARCA').insert({
-                    "Nome": nome_marca,
-                    "Attiva": "Y"
-                }).execute()
-                flash(f"Marca {nome_marca} aggiunta con successo!", "success")
+                supabase.table('MARCA').insert({"Nome": nome_marca, "Attiva": "Y"}).execute()
+                flash(f"Marca {nome_marca} aggiunta!", "success")
             except Exception as e:
                 print(f"ERRORE MARCA: {e}")
                 flash("Errore durante l'inserimento della marca.", "danger")
-            
             return redirect('/admin/catalog')
 
-    # --- RECUPERO DATI PER LA VISUALIZZAZIONE ---
-    try:
-        # Recuperiamo tutte le marche
-        res_marche = supabase.table('MARCA').select('*').execute()
-        lista_marche = res_marche.data
+        # --- 2. GESTIONE INSERIMENTO VEICOLO ---
+        if 'aggiungi_veicolo' in request.form:
+            try:
+                nuovo_veicolo = {
+                    "Targa": request.form.get('targa').upper(),
+                    "Modello": request.form.get('modello'),
+                    "Prezzo_Base": float(request.form.get('prezzo')),
+                    "Stato_Disponibilita": request.form.get('stato'),
+                    "ID_Marca": int(request.form.get('id_marca'))
+                }
+                supabase.table('VEICOLO').insert(nuovo_veicolo).execute()
+                flash(f"Veicolo {nuovo_veicolo['Modello']} inserito nel catalogo!", "success")
+            except Exception as e:
+                print(f"ERRORE VEICOLO: {e}")
+                flash("Errore durante il salvataggio del veicolo.", "danger")
+            return redirect('/admin/catalog')
 
-        # Recuperiamo tutti i veicoli (con i dati della marca uniti se possibile)
-        res_veicoli = supabase.table('VEICOLO').select('*').execute()
-        lista_veicoli = res_veicoli.data
-    except Exception as e:
-        print(f"ERRORE LETTURA CATALOGO: {e}")
-        lista_marche = []
-        lista_veicoli = []
+    # --- RECUPERO DATI PER LE TABELLE ---
+    try:
+        lista_marche = supabase.table('MARCA').select('*').execute().data
+        lista_veicoli = supabase.table('VEICOLO').select('*').execute().data
+    except:
+        lista_marche, lista_veicoli = [], []
 
     return render_template('admin/catalog.html', marche=lista_marche, veicoli=lista_veicoli)
