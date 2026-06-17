@@ -1,0 +1,57 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Gestione Utenti e Personale</h2>
+        <a href="/admin/add_crew" class="btn btn-primary">+ Nuovo Dipendente</a>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <table class="table table-hover table-striped mb-0 align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th>ID</th>
+                        <th>Nome e Cognome</th>
+                        <th>Email</th>
+                        <th>Telefono</th>
+                        <th>Ruolo</th>
+                        <th class="text-end">Azioni</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for utente in utenti %}
+                    <tr>
+                        <td class="fw-bold">{{ utente.ID_Persona }}</td>
+                        <td>{{ utente.Nome }} {{ utente.Cognome }}</td>
+                        <td>{{ utente.Mail }}</td>
+                        <td>{{ utente.Telefono }}</td>
+                        <td>
+                            {% if utente.Ruolo == 4 %}
+                                <span class="badge bg-danger">Direzione</span>
+                            {% elif utente.Ruolo == 2 %}
+                                <span class="badge bg-success">Venditore</span>
+                            {% elif utente.Ruolo == 3 %}
+                                <span class="badge bg-warning text-dark">Meccanico</span>
+                            {% elif utente.Ruolo == 1 %}
+                                <span class="badge bg-secondary">Cliente</span>
+                            {% else %}
+                                <span class="badge bg-light text-dark">Altro ({{ utente.Ruolo }})</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-outline-secondary">Modifica</button>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">Nessun utente trovato nel database.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -96,11 +96,18 @@ def registrazione():
 # --- ROTTE PROTETTE ---
 @main.route('/')
 def home():
-    if 'user_id' not in session: return redirect('/login')
-    # Smistamento centrale
-    if session['ruolo'] == 4: return redirect('/dashboard_admin')
-    if session['ruolo'] == 1: return redirect('/area_cliente')
-    return "Benvenuto!"
+    if 'user_id' not in session: 
+        return redirect('/login')
+        
+    # Smistamento centrale in base al ruolo nel DB
+    if session['ruolo'] == 4: 
+        return redirect('/dashboard_admin')     # 4 = Direzione
+    elif session['ruolo'] == 3:                 # <--- CAMBIATO QUI IN 3
+        return redirect('/salesperson')         # 3 = Venditore
+    elif session['ruolo'] == 1: 
+        return redirect('/area_cliente')        # 1 = Cliente
+        
+    return f"Benvenuto {session.get('nome', '')}! Il tuo ruolo ({session['ruolo']}) non ha ancora una home dedicata."
 
 @main.route('/dashboard_admin')
 @ruolo_richiesto(4) 
@@ -147,7 +154,8 @@ def area_cliente():
 @ruolo_richiesto(4)
 def gestione_utenti():
     response = supabase.table('PERSONA').select('*').execute()
-    return render_template('admin_utenti.html', utenti=response.data)
+    # Abbiamo aggiunto "admin/" prima del nome del file
+    return render_template('admin/admin_user.html', utenti=response.data)
 
 @main.route('/logout')
 def logout():
@@ -214,14 +222,29 @@ def gestione_catalogo():
             return redirect('/admin/catalog')
 
         # --- 2. GESTIONE INSERIMENTO VEICOLO ---
+        # --- 2. GESTIONE INSERIMENTO VEICOLO (COMPLETO) ---
         if 'aggiungi_veicolo' in request.form:
             try:
                 nuovo_veicolo = {
                     "Targa": request.form.get('targa').upper(),
                     "Modello": request.form.get('modello'),
+                    "Anno_Produzione": int(request.form.get('anno')),
+                    "Data_Arrivo_Concessionaria": request.form.get('data_arrivo'),
+                    "Classe_Inquinamento": request.form.get('classe_inquinamento'),
                     "Prezzo_Base": float(request.form.get('prezzo')),
                     "Stato_Disponibilita": request.form.get('stato'),
-                    "ID_Marca": int(request.form.get('id_marca'))
+                    "ID_Marca": int(request.form.get('id_marca')),
+                    "Kilometraggio": int(request.form.get('chilometraggio')),
+                    "Potenza_CV": int(request.form.get('potenza_cv')),
+                    "Peso": float(request.form.get('peso')),
+                    "Data_Immatricolazione": request.form.get('data_immatricolazione'),
+                    "Descrizione": request.form.get('descrizione'),
+                    "Configurazione_Assi": request.form.get('configurazione_assi'),
+                    
+                    # --- GLI ULTIMI 3 CAMPI DAL TUO SCREENSHOT ---
+                    "Numero_Assi": int(request.form.get('numero_assi')),
+                    "NumeroTelaio": request.form.get('numero_telaio').upper(),
+                    "Tipologia_Motrice": request.form.get('tipologia_motrice')
                 }
                 supabase.table('VEICOLO').insert(nuovo_veicolo).execute()
                 flash(f"Veicolo {nuovo_veicolo['Modello']} inserito nel catalogo!", "success")
@@ -241,20 +264,76 @@ def gestione_catalogo():
 
 @main.route('/catalog', methods=['GET'])
 def public_catalog():
-    vehicles = []
-    brands = []
-    return render_template('public_catalog.html', vehicles=vehicles, brands=brands)
+    try:
+        res_veicoli = supabase.table('VEICOLO').select('*').execute()
+        vehicles = res_veicoli.data
+
+        res_marche = supabase.table('MARCA').select('*').eq('Attiva', 'Y').execute()
+        brands = res_marche.data
+        
+        mappa_marche = {marca['ID_Marca']: marca['Nome'] for marca in brands}
+
+    except Exception as e:
+        print(f"ERRORE CATALOGO PUBBLICO: {e}")
+        vehicles = []
+        brands = []
+        mappa_marche = {}
+
+    return render_template('public_catalog.html', vehicles=vehicles, brands=brands, mappa_marche=mappa_marche)
 
 @main.route('/salesperson', methods=['GET'])
+@ruolo_richiesto(3)  # 3 = Venditore
 def salesperson_dashboard():
-    quotes = []
-    test_drives = []
-    return render_template('salesperson_dashboard.html', quotes=quotes, test_drives=test_drives)
+    try:
+        # Peschiamo il numero di veicoli attualmente in catalogo per le statistiche
+        res_veicoli = supabase.table('VEICOLO').select('*').execute()
+        veicoli_disponibili = len(res_veicoli.data)
+        
+        # In futuro qui faremo le query alle tabelle PREVENTIVO e TEST_DRIVE
+        quotes = [] 
+        test_drives = []
+
+    except Exception as e:
+        print(f"ERRORE DASHBOARD VENDITORE: {e}")
+        veicoli_disponibili = 0
+        quotes = []
+        test_drives = []
+
+    return render_template('salesperson_dashboard.html', 
+                           quotes=quotes, 
+                           test_drives=test_drives, 
+                           stock_count=veicoli_disponibili)
 
 @main.route('/transaction_wizard', methods=['GET'])
+@ruolo_richiesto(3) # Solo per i Venditori (Ruolo 3)
 def transaction_wizard():
-    available_vehicles = []
-    return render_template('transaction_wizard.html', available_vehicles=available_vehicles)
+    if request.method == 'POST':
+        # Qui in futuro inseriremo i dati nella tabella PREVENTIVO o TRANSAZIONE
+        # Per ora simuliamo il successo per testare l'interfaccia!
+        flash("Transazione/Preventivo generato con successo!", "success")
+        return redirect('/salesperson')
+
+    try:
+        # 1. Recupero Clienti (Ruolo = 1)
+        res_clienti = supabase.table('PERSONA').select('*').eq('Ruolo', 1).execute()
+        clienti = res_clienti.data
+
+        # 2. Recupero Veicoli in catalogo
+        res_veicoli = supabase.table('VEICOLO').select('*').execute()
+        veicoli = res_veicoli.data
+
+        # 3. Recupero Marche (per mostrare i nomi corretti dei veicoli)
+        res_marche = supabase.table('MARCA').select('*').execute()
+        mappa_marche = {marca['ID_Marca']: marca['Nome'] for marca in res_marche.data}
+
+    except Exception as e:
+        print(f"ERRORE WIZARD: {e}")
+        clienti, veicoli, mappa_marche = [], [], {}
+
+    return render_template('sales/transaction_wizard.html', 
+                           clienti=clienti, 
+                           veicoli=veicoli, 
+                           mappa_marche=mappa_marche)
 
 @main.route('/test_drive_calendar', methods=['GET'])
 def test_drive_calendar():

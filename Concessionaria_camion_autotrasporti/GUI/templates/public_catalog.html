@@ -57,24 +57,24 @@
             {% for vehicle in vehicles %}
             <div class="col">
                 <div class="card h-100 shadow-sm border-0 transition-hover">
-                    <img src="https://via.placeholder.com/400x250/e9ecef/495057?text={{ vehicle.brand }}+{{ vehicle.model }}" class="card-img-top" alt="Vehicle Image">
+                    <img src="https://via.placeholder.com/400x250/e9ecef/495057?text={{ mappa_marche.get(vehicle.ID_Marca, 'Marca') }}+{{ vehicle.Modello }}" class="card-img-top" alt="Vehicle Image">
                     
                     <div class="card-body">
-                        <h5 class="card-title fw-bold text-uppercase">{{ vehicle.brand }} {{ vehicle.model }}</h5>
+                        <h5 class="card-title fw-bold text-uppercase">{{ mappa_marche.get(vehicle.ID_Marca, '') }} {{ vehicle.Modello }}</h5>
                         <p class="card-text text-muted mb-2 small">
-                            📅 Year: {{ vehicle.year }} <br>
-                            {% if vehicle.condition == 'Used' %} 🛣️ Mileage: {{ vehicle.mileage }} km {% endif %}
+                            📅 Year: {{ vehicle.Anno_Produzione }} <br>
+                            {% if vehicle.Stato_Disponibilita == 'U' %} 🛣️ Mileage: {{ vehicle.Kilometraggio }} km {% endif %}
                         </p>
-                        <h4 class="text-success mb-3">€ {{ vehicle.base_price }}</h4>
+                        <h4 class="text-success mb-3">€ {{ vehicle.Prezzo_Base }}</h4>
                         
-                        <span class="badge {% if vehicle.condition == 'New' %}bg-success{% else %}bg-info text-dark{% endif %} mb-1">
-                            {{ vehicle.condition }}
+                        <span class="badge {% if vehicle.Stato_Disponibilita == 'N' %}bg-success{% else %}bg-info text-dark{% endif %} mb-1">
+                            {% if vehicle.Stato_Disponibilita == 'N' %}New{% else %}Used{% endif %}
                         </span>
-                        <span class="badge bg-dark">{{ vehicle.status }}</span>
+                        <span class="badge bg-dark">{{ vehicle.Tipologia_Motrice }}</span>
                     </div>
                     
                     <div class="card-footer bg-white border-top-0 d-flex justify-content-between pb-3">
-                        <button class="btn btn-sm btn-outline-primary fw-bold" data-id="{{ vehicle.id }}" data-name="{{ vehicle.brand }} {{ vehicle.model }}" onclick="showOptionals(this.getAttribute('data-id'), this.getAttribute('data-name'))">⚙️ Optionals</button>
+                        <button class="btn btn-sm btn-outline-primary fw-bold" data-id="{{ vehicle.Targa }}" data-name="{{ mappa_marche.get(vehicle.ID_Marca, '') }} {{ vehicle.Modello }}" onclick="showOptionals(this.getAttribute('data-id'), this.getAttribute('data-name'))">⚙️ Optionals</button>
                         <button class="btn btn-sm btn-primary">Details</button>
                     </div>
                 </div>
