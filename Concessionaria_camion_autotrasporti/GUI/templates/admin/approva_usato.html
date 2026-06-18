@@ -1,0 +1,63 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <h2 class="mb-4">💰 Approvazione e Convalida Proposte Usato</h2>
+    <p class="text-muted">Esamina i resoconti tecnici dei meccanici e decidi se acquistare il veicolo usato inserendolo nel catalogo aziendale.</p>
+
+    {% if perizie %}
+        <div class="row">
+        {% for p in perizie %}
+            <div class="col-md-6 mb-4">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-header bg-dark text-white fw-bold d-flex justify-content-between align-items-center">
+                        <span>🚗 Targa: {{ p.Targa }} | Telaio: {{ p.NumeroTelaio }}</span>
+                        <span class="badge {% if p.Esito_Meccanico == 'A' %}bg-success{% else %}bg-danger{% endif %}">
+                            Meccanico: {{ p.Esito_Meccanico }}
+                        </span>
+                    </div>
+                    <div class="card-body p-4">
+                        <h6 class="fw-bold text-secondary mb-2">Dettagli Perizia (Mecc: {{ p.Meccanico_Nome }} {{ p.Meccanico_Cognome }})</h6>
+                        
+                        <p class="mb-1"><strong>Danni riscontrati:</strong> {{ p.Descrizione }}</p>
+                        <p class="mb-3"><strong>Prezzo Consigliato dal Meccanico:</strong> <span class="text-success fw-bold">{{ p.Prezzo_Consigliato }} €</span></p>
+                        
+                        <hr>
+                        
+                        <form method="POST" action="/admin/approva_usato">
+                            <input type="hidden" name="id_pratica" value="{{ p.ID_Usato }}">
+                            
+                            <input type="hidden" name="data_approvazione" value="2026-06-17"> 
+                            
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold">Decisione Finale Vendita</label>
+                                <select class="form-select form-select-sm" name="decisione" required>
+                                    <option value="A">Acquista e inserisci in Stock (USATO)</option>
+                                    <option value="R">Rifiuta Proposta definitivamente</option>
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold">Note Amministratore</label>
+                                <textarea class="form-control form-control-sm" name="nota_proprietario" rows="2" placeholder="Inserisci eventuali note sull'acquisto..."></textarea>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold">Prezzo di Acquisto Effettivo (€)</label>
+                                <input type="number" step="0.01" class="form-control form-control-sm" name="prezzo_finale" value="{{ p.Prezzo_Consigliato }}" min="0" required>
+                            </div>
+
+                            <button type="submit" class="btn btn-dark btn-sm w-100 fw-bold mt-2">Concludi Pratica e Archivia 🔒</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+        </div>
+    {% else %}
+        <div class="alert alert-secondary">
+            📭 Nessuna perizia tecnica completata dai meccanici in attesa di approvazione.
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

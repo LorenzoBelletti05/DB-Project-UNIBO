@@ -8,6 +8,7 @@ load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'))
 url = os.environ.get("SUPABASE_URL")
 key = os.environ.get("SUPABASE_KEY")
 
+
 if not url or not key:
     raise ValueError("Credenziali Supabase mancanti. Controlla il file .env")
 

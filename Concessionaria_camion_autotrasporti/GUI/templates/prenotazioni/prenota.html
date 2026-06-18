@@ -1,0 +1,64 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-primary text-white fw-bold py-3">
+                    Prenota un Intervento in Officina
+                </div>
+                <div class="card-body p-4">
+                    <p class="text-muted mb-4">Compila il modulo sottostante per richiedere un appuntamento. La nostra officina ti assegnerà un meccanico il prima possibile.</p>
+                    
+                    <form method="POST" action="/prenota">
+                        
+                        <h6 class="text-muted border-bottom pb-1">Dati del Veicolo</h6>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Targa Veicolo</label>
+                                <input type="text" name="targa" class="form-control text-uppercase" placeholder="Es. AB123CD" required maxlength="20">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Numero di Telaio</label>
+                                <input type="text" name="telaio" class="form-control text-uppercase" placeholder="Inserisci i 17 caratteri" required maxlength="17">
+                            </div>
+                        </div>
+
+                        <h6 class="text-muted border-bottom pb-1 mt-4">Dettagli Appuntamento</h6>
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Data Desiderata</label>
+                                <input type="date" name="data" class="form-control" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Ora d'arrivo</label>
+                                <input type="time" name="ora" class="form-control" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Sede Officina</label>
+                                <select name="sede" class="form-select" required>
+                                    <option value="" disabled selected>Scegli...</option>
+                                    <option value="1">Sede Centrale (Milano)</option>
+                                    <option value="2">Sede Secondaria (Roma)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Descrizione del Problema</label>
+                            <textarea name="note" class="form-control" rows="3" placeholder="Descrivi brevemente il problema del tuo veicolo (max 100 caratteri)..." required maxlength="100"></textarea>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="/area_cliente" class="btn btn-outline-secondary">Annulla</a>
+                            <button type="submit" class="btn btn-success px-4">Invia Richiesta</button>
+                        </div>
+                        
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
