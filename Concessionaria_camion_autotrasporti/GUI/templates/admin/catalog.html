@@ -13,7 +13,19 @@
         <li class="nav-item" role="presentation">
             <button class="nav-link fw-bold" id="veicoli-tab" data-bs-toggle="tab" data-bs-target="#veicoli-pane" type="button" role="tab">Inventario Veicoli</button>
         </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-bold"
+                    id="archivio-tab"
+                    data-bs-toggle="tab"
+                    data-bs-target="#archivio-pane"
+                    type="button"
+                    role="tab">
+                Archivio
+            </button>
+        </li>
     </ul>
+
+    
 
     <div class="tab-content" id="catalogoTabsContent">
         
@@ -119,7 +131,15 @@
                                     {% endif %}
                                 </td>
                                 <td class="text-end">
-                                    <button class="btn btn-sm btn-outline-primary">Dettagli</button>
+                                    <div class="btn-group">
+                                        <button class="btn btn-sm btn-outline-primary">
+                                            Dettagli
+                                        </button>
+
+                                        <button class="btn btn-sm btn-warning">
+                                            Archivia
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                             {% else %}
@@ -132,7 +152,56 @@
                 </div>
             </div>
 
-        </div> </div>
+        </div>
+        
+        <div class="tab-pane fade" id="archivio-pane" role="tabpanel" tabindex="0">
+
+    <div class="d-flex justify-content-between mb-3 align-items-center">
+        <h5 class="mb-0">Veicoli Archiviati</h5>
+    </div>
+
+            <div class="card shadow-sm">
+                <div class="card-body p-0">
+                    <table class="table table-hover table-striped mb-0">
+                        <thead class="table-secondary">
+                            <tr>
+                                <th>Targa</th>
+                                <th>Telaio</th>
+                                <th>Modello</th>
+                                <th>Data Inserimento</th>
+                                <th>Azioni</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            {% for veicolo in veicoli_archiviati %}
+                            <tr>
+                                <td>{{ veicolo.Targa }}</td>
+                                <td>{{ veicolo.NumeroTelaio }}</td>
+                                <td>{{ veicolo.Modello }}</td>
+                                <td>{{ veicolo.Data_Inserimento }}</td>
+
+                                <td>
+                                    <button class="btn btn-sm btn-success">
+                                        Ripristina
+                                    </button>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-4">
+                                    Nessun veicolo archiviato.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
 </div>
 
 <div class="modal fade" id="modalVeicolo" tabindex="-1" aria-labelledby="modalVeicoloLabel" aria-hidden="true">
