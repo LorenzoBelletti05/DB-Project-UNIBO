@@ -1,8 +1,57 @@
 {% extends "layout.html" %}
+
 {% block content %}
-    <h1>Benvenuto, {{ session.nome }}!</h1>
-    <hr>
-    <div class="card p-3">
-        <p>Questa è la tua area riservata dove potrai vedere le tue auto e prenotare interventi.</p>
+<div class="container mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-2">
+        <h2 class="text-primary">Benvenuto, {{ session.nome }}!</h2>
     </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm border-0 border-top border-primary border-4">
+                <div class="card-body text-center">
+                    <h1 class="display-4 mb-3">🚗</h1>
+                    <h5 class="card-title fw-bold">Il mio Garage</h5>
+                    <p class="card-text text-muted">Visualizza i veicoli che hai acquistato o noleggiato.</p>
+                    <a href="#" class="btn btn-outline-primary w-100">Vedi Veicoli</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm border-0 border-top border-success border-4">
+                <div class="card-body text-center">
+                    <h1 class="display-4 mb-3">🤝</h1>
+                    <h5 class="card-title fw-bold">Vendi il tuo Usato</h5>
+                    <p class="card-text text-muted">Richiedi una valutazione meccanica per la tua auto.</p>
+                    <a href="#" class="btn btn-outline-success w-100">Nuova Proposta</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm border-0 border-top border-warning border-4">
+                <div class="card-body text-center">
+                    <h1 class="display-4 mb-3">🔧</h1>
+                    <h5 class="card-title fw-bold">Officina & Test Drive</h5>
+                    <p class="card-text text-muted">Gestisci le tue prenotazioni in sede.</p>
+                    <a href="#" class="btn btn-outline-warning text-dark w-100">Le mie Prenotazioni</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white fw-bold py-3">
+            Recenti Attività
+        </div>
+        <div class="card-body p-0">
+            <ul class="list-group list-group-flush">
+                <li class="list-group-item py-4 text-muted text-center">
+                    Nessuna attività recente da mostrare.
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>
 {% endblock %}
