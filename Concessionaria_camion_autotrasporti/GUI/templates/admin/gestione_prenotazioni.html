@@ -2,7 +2,7 @@
 
 {% block content %}
 <div class="container mt-4 mb-5">
-    <h2 class="mb-4">📋 Gestione Prenotazioni in Sospeso</h2>
+    <h2 class="mb-4">Gestione Prenotazioni in Sospeso</h2>
     <p class="text-muted">Qui puoi visionare le richieste dei clienti e assegnarle ai meccanici dell'officina.</p>
 
     {% if prenotazioni %}
@@ -11,7 +11,7 @@
             <div class="accordion-item mb-3 shadow-sm border-0 rounded">
                 <h2 class="accordion-header" id="heading{{ p.ID_Prenotazione }}">
                     <button class="accordion-button collapsed bg-light fw-bold text-primary" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ p.ID_Prenotazione }}" aria-expanded="false">
-                        📅 {{ p.Data_Prenotazione }} | Targa: {{ p.Targa }} | Cliente: {{ p.PERSONA.Nome if p.PERSONA else 'Sconosciuto' }} {{ p.PERSONA.Cognome if p.PERSONA else '' }}
+                        {{ p.Data_Prenotazione }} | Targa: {{ p.Targa }} | Cliente: {{ p.PERSONA.Nome if p.PERSONA else 'Sconosciuto' }} {{ p.PERSONA.Cognome if p.PERSONA else '' }}
                     </button>
                 </h2>
                 <div id="collapse{{ p.ID_Prenotazione }}" class="accordion-collapse collapse" data-bs-parent="#accordionPrenotazioni">
@@ -20,7 +20,7 @@
                         <p><strong>Ora arrivo:</strong> {{ p.Ora_Incontro }} | <strong>Telaio:</strong> {{ p.NumeroTelaio }}</p>
 
                         <hr>
-                        <h6 class="fw-bold mb-3 text-secondary">⚙️ Assegna questo lavoro:</h6>
+                        <h6 class="fw-bold mb-3 text-secondary">Assegna questo lavoro:</h6>
                         <form method="POST" action="/admin/assegna_lavoro">
                             <input type="hidden" name="id_prenotazione" value="{{ p.ID_Prenotazione }}">
                             <input type="hidden" name="targa" value="{{ p.Targa }}">
@@ -47,7 +47,7 @@
                                 </div>
                             </div>
                             <div class="mt-4 text-end">
-                                <button type="submit" class="btn btn-success px-4">Conferma e Assegna ✔</button>
+                                <button type="submit" class="btn btn-success px-4">Conferma e Assegna</button>
                             </div>
                         </form>
                     </div>
@@ -57,7 +57,7 @@
         </div>
     {% else %}
         <div class="alert alert-success shadow-sm">
-            🎉 Nessuna prenotazione in sospeso! L'officina è in pari con il lavoro.
+            Nessuna prenotazione in sospeso! L'officina è in pari con il lavoro.
         </div>
     {% endif %}
 </div>

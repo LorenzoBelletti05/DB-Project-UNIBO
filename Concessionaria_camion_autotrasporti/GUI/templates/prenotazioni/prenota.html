@@ -3,62 +3,197 @@
 {% block content %}
 <div class="container mt-4 mb-5">
     <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card shadow-sm border-0">
-                <div class="card-header bg-primary text-white fw-bold py-3">
-                    Prenota un Intervento in Officina
+        <div class="col-md-10">
+            <div class="card shadow border-0 rounded-3">
+                <div class="card-header bg-warning text-dark py-3">
+                    <h4 class="mb-0 fw-bold">Prenota Intervento in Officina</h4>
                 </div>
                 <div class="card-body p-4">
-                    <p class="text-muted mb-4">Compila il modulo sottostante per richiedere un appuntamento. La nostra officina ti assegnerà un meccanico il prima possibile.</p>
-                    
+                    <p class="text-muted mb-4">Seleziona il tuo veicolo e descrivi il problema riscontrato o la manutenzione richiesta.</p>
+
                     <form method="POST" action="/prenota">
                         
-                        <h6 class="text-muted border-bottom pb-1">Dati del Veicolo</h6>
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold">Targa Veicolo</label>
-                                <input type="text" name="targa" class="form-control text-uppercase" placeholder="Es. AB123CD" required maxlength="20">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold">Numero di Telaio</label>
-                                <input type="text" name="telaio" class="form-control text-uppercase" placeholder="Inserisci i 17 caratteri" required maxlength="17">
-                            </div>
-                        </div>
-
-                        <h6 class="text-muted border-bottom pb-1 mt-4">Dettagli Appuntamento</h6>
-                        <div class="row mb-3">
-                            <div class="col-md-4">
-                                <label class="form-label fw-bold">Data Desiderata</label>
-                                <input type="date" name="data" class="form-control" required>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label fw-bold">Ora d'arrivo</label>
-                                <input type="time" name="ora" class="form-control" required>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label fw-bold">Sede Officina</label>
-                                <select name="sede" class="form-select" required>
-                                    <option value="" disabled selected>Scegli...</option>
-                                    <option value="1">Sede Centrale (Milano)</option>
-                                    <option value="2">Sede Secondaria (Roma)</option>
-                                </select>
+                        <div class="card mb-4 border-warning">
+                            <div class="card-body bg-light">
+                                <h5 class="fw-bold mb-3">Quale veicolo necessita di assistenza?</h5>
+                                
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="radio" name="tipo_inserimento" id="tipoEsistente" value="esistente" onchange="toggleForm()" checked>
+                                    <label class="form-check-label fw-bold" for="tipoEsistente">
+                                        Scegli dalla mia Flotta/Garage Virtuale
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="tipo_inserimento" id="tipoNuovo" value="nuovo" onchange="toggleForm()">
+                                    <label class="form-check-label fw-bold" for="tipoNuovo">
+                                        Registra e prenota per un Nuovo Veicolo
+                                    </label>
+                                </div>
                             </div>
                         </div>
 
-                        <div class="mb-4">
-                            <label class="form-label fw-bold">Descrizione del Problema</label>
-                            <textarea name="note" class="form-control" rows="3" placeholder="Descrivi brevemente il problema del tuo veicolo (max 100 caratteri)..." required maxlength="100"></textarea>
+                        <div id="sezione-esistente" class="mb-4">
+                            <label class="form-label fw-bold text-warning text-dark">Seleziona Veicolo</label>
+                            <select name="telaio_esistente" class="form-select border-warning" id="selectEsistente">
+                                {% for auto in auto_cliente %}
+                                    <option value="{{ auto.NumeroTelaio }}">{{ auto.Marca_Nome }} {{ auto.Modello }} - Targa: {{ auto.Targa }}</option>
+                                {% else %}
+                                    <option value="" disabled selected>Nessun veicolo trovato. Seleziona "Registra Nuovo Veicolo".</option>
+                                {% endfor %}
+                            </select>
                         </div>
 
-                        <div class="d-flex justify-content-between mt-4">
-                            <a href="/area_cliente" class="btn btn-outline-secondary">Annulla</a>
-                            <button type="submit" class="btn btn-success px-4">Invia Richiesta</button>
+                        <div id="sezione-nuovo" class="d-none mb-4 p-4 border rounded bg-white shadow-sm">
+                            <h5 class="fw-bold text-primary mb-3">Dati Tecnici del Nuovo Veicolo</h5>
+                            
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <label class="form-label">Marca</label>
+                                    <input type="text" name="marca" class="form-control req-nuovo">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Modello</label>
+                                    <input type="text" name="modello" class="form-control req-nuovo">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Targa</label>
+                                    <input type="text" name="targa" class="form-control text-uppercase req-nuovo">
+                                </div>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <label class="form-label">Anno Produzione</label>
+                                    <input type="number" name="anno" class="form-control req-nuovo">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Data Immatricolazione</label>
+                                    <input type="date" name="data_immatricolazione" class="form-control req-nuovo">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Kilometraggio Attuale</label>
+                                    <input type="number" name="km" class="form-control req-nuovo">
+                                </div>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-md-3">
+                                    <label class="form-label">Potenza (CV)</label>
+                                    <input type="number" name="potenza_cv" class="form-control req-nuovo">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Peso (Kg)</label>
+                                    <input type="number" step="0.1" name="peso" class="form-control req-nuovo">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Tipologia Motrice</label>
+                                    <select name="tipologia_motrice" class="form-select req-nuovo">
+                                        <option value="Trattore Stradale">Trattore Stradale</option>
+                                        <option value="Motrice">Motrice</option>
+                                        <option value="Furgone">Furgone</option>
+                                        <option value="Autovettura">Autovettura</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Classe Inquinamento</label>
+                                    <select name="classe_inquinamento" class="form-select req-nuovo">
+                                        <option value="Euro 6">Euro 6</option>
+                                        <option value="Euro 5">Euro 5</option>
+                                        <option value="Euro 4">Euro 4</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Configurazione Assi</label>
+                                    <select name="configurazione_assi" class="form-select req-nuovo">
+                                        <option value="4x2">4x2</option>
+                                        <option value="6x2">6x2</option>
+                                        <option value="8x4">8x4</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Numero Assi</label>
+                                    <input type="number" name="numero_assi" class="form-control req-nuovo" value="2">
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold text-danger">Numero Telaio (VIN) * 17 Caratteri</label>
+                                <input type="text" name="numero_telaio" class="form-control text-uppercase border-danger req-nuovo" maxlength="17">
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Descrizione / Optional Veicolo</label>
+                                <textarea name="descrizione_veicolo" class="form-control" rows="2" placeholder="Dettagli sulle condizioni, allestimenti particolari..."></textarea>
+                            </div>
                         </div>
-                        
+
+                        <div class="card mb-4 border-0 shadow-sm bg-light">
+                            <div class="card-body">
+                                <h5 class="fw-bold mb-3">Dettagli Appuntamento</h5>
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">Seleziona Sede Officina</label>
+                                        <select name="sede" class="form-select" required>
+                                            <option value="" disabled selected>Scegli una filiale...</option>
+                                            {% for sede in sedi %}
+                                                <option value="{{ sede.ID_Sede }}">{{ sede.Denominazione }} - {{ sede.Indirizzo }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label fw-bold">Data Preferita</label>
+                                        <input type="date" name="data" class="form-control" required>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label fw-bold">Orario Incontro</label>
+                                        <input type="time" name="ora" class="form-control" required>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Descrivi il problema o la manutenzione richiesta</label>
+                                    <textarea name="note" class="form-control" rows="3" placeholder="Es: Tagliando completo, spia motore accesa, cambio pastiglie freni..." required></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-warning w-100 py-3 fw-bold shadow-sm text-dark fs-5">
+                            Conferma Prenotazione
+                        </button>
                     </form>
+
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+    function toggleForm() {
+        var isNuovo = document.getElementById('tipoNuovo').checked;
+        var sezEsistente = document.getElementById('sezione-esistente');
+        var sezNuovo = document.getElementById('sezione-nuovo');
+        var inputNuovi = document.querySelectorAll('.req-nuovo');
+        var selectEsistente = document.getElementById('selectEsistente');
+
+        if (isNuovo) {
+            sezEsistente.classList.add('d-none');
+            sezNuovo.classList.remove('d-none');
+            inputNuovi.forEach(input => input.required = true);
+            selectEsistente.required = false;
+        } else {
+            sezEsistente.classList.remove('d-none');
+            sezNuovo.classList.add('d-none');
+            inputNuovi.forEach(input => input.required = false);
+            selectEsistente.required = true;
+        }
+    }
+    
+    document.addEventListener("DOMContentLoaded", function() {
+        toggleForm();
+    });
+</script>
 {% endblock %}
