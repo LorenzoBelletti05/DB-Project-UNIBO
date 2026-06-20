@@ -1,0 +1,44 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>🚗 Il Mio Garage Virtuale</h2>
+        <a href="/area_cliente" class="btn btn-outline-secondary btn-sm">← Torna alla Dashboard</a>
+    </div>
+
+    {% if auto %}
+    <div class="card shadow-sm border-0 rounded-3">
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0 table-striped">
+                <thead class="table-primary">
+                    <tr>
+                        <th class="ps-4">Marca</th>
+                        <th>Modello</th>
+                        <th>Targa</th>
+                        <th>Numero Telaio</th>
+                        <th class="pe-4 text-end">Stato</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for a in auto %}
+                    <tr class="align-middle">
+                        <td class="ps-4 fw-bold">{{ a.Marca }}</td>
+                        <td>{{ a.Modello }}</td>
+                        <td><span class="badge bg-light text-dark border">{{ a.Targa }}</span></td>
+                        <td class="text-muted small">{{ a.NumeroTelaio }}</td>
+                        <td class="pe-4 text-end"><span class="badge bg-success">Registrata</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-info shadow-sm text-center p-5">
+        <h4>📭 Il tuo garage è vuoto!</h4>
+        <p class="text-muted mb-0">Non hai ancora registrato nessun veicolo a tuo nome nel nostro sistema.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

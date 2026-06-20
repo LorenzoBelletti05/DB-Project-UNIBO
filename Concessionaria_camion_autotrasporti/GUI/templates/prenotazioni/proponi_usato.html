@@ -1,0 +1,71 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-dark text-white fw-bold py-3">
+                    💰 Proponi il tuo Veicolo Usato per una Valutazione
+                </div>
+                <div class="card-body p-4">
+                    <p class="text-muted mb-4">Vuoi vendere il tuo veicolo o darlo in permuta? Inserisci i dati qui sotto per richiedere una perizia tecnica e una valutazione economica dal nostro team.</p>
+                    
+                    <form method="POST" action="/proponi_usato">
+                        
+                        <h6 class="text-secondary border-bottom pb-1">Dati Identificativi</h6>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small">Targa</label>
+                                <input type="text" name="targa" class="form-control text-uppercase" placeholder="Es. AB123CD" required maxlength="20">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small">Numero di Telaio</label>
+                                <input type="text" name="telaio" class="form-control text-uppercase" placeholder="17 caratteri" required maxlength="17">
+                            </div>
+                        </div>
+
+                        <h6 class="text-secondary border-bottom pb-1 mt-4">Dettagli del Veicolo</h6>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small">Marca</label>
+                                <input type="text" name="marca" class="form-control" placeholder="Es. Fiat, Iveco, Scania" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small">Modello</label>
+                                <input type="text" name="modello" class="form-control" placeholder="Es. Ducato, Stralis" required>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small">Anno Immatricolazione</label>
+                                <input type="number" name="anno" class="form-control" min="1980" max="2026" placeholder="Es. 2018" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small">Chilometri Attuali</label>
+                                <input type="number" name="km" class="form-control" min="0" placeholder="Es. 150000" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small">Data Richiesta</label>
+                                <input type="date" name="data" class="form-control" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold small">Stato Generale / Note del Conducente</label>
+                            <textarea name="stato_veicolo" class="form-control" rows="3" placeholder="Descrivi lo stato del mezzo (es: Carrozzeria ottima, freni da rivedere...)" required></textarea>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="/area_cliente" class="btn btn-outline-secondary">Torna alla Dashboard</a>
+                            <button type="submit" class="btn btn-dark px-4">Invia Proposta Usato 📩</button>
+                        </div>
+                        
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

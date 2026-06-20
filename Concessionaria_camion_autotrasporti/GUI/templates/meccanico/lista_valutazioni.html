@@ -1,0 +1,72 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <h2 class="mb-4">📋 Perizie Tecniche Usato (Richieste Clienti)</h2>
+    <p class="text-muted">Seleziona una richiesta inviata dai clienti per inserire l'esito della perizia tecnica dell'officina.</p>
+
+    {% if pratiche %}
+        <div class="accordion" id="accordionUsato">
+        {% for p in pratiche %}
+            <div class="accordion-item mb-3 shadow-sm border-0 rounded">
+                <h2 class="accordion-header" id="heading{{ p.ID_Usato }}">
+                    <button class="accordion-button collapsed bg-light fw-bold text-dark" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ p.ID_Usato }}" aria-expanded="false">
+                        🚗 {{ p.Marca }} {{ p.Modello }} | Pratica Aperta il: {{ p.Data_Inizio }}
+                    </button>
+                </h2>
+                <div id="collapse{{ p.ID_Usato }}" class="accordion-collapse collapse" data-bs-parent="#accordionUsato">
+                    <div class="accordion-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>Identificativo Proprietario (ID):</strong> {{ p.ID_Persona }}</p>
+                                <p><strong>Targa:</strong> {{ p.Targa }} | <strong>Telaio:</strong> {{ p.NumeroTelaio }}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Chilometri del Mezzo:</strong> <span class="badge bg-secondary">{{ p.Km }} km</span></p>
+                                <p><strong>Identificativo Pratica Usato:</strong> #{{ p.ID_Usato }}</p>
+                            </div>
+                        </div>
+
+                        <hr>
+                        <h6 class="fw-bold mb-3 text-warning">🛠️ Compila Esito Perizia Tecnica:</h6>
+                        <form method="POST" action="/meccanico/valutazioni">
+                            <input type="hidden" name="id_pratica" value="{{ p.ID_Usato }}">
+
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label small fw-bold">Verdetto Tecnico</label>
+                                    <select class="form-select" name="stato_meccanico" required>
+                                        <option value="" disabled selected>Scegli...</option>
+                                        <option value="Approvato">Approvato (Mezzo idoneo)</option>
+                                        <option value="Rifiutato">Rifiutato (Troppi danni)</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small fw-bold">Prezzo Consigliato (€)</label>
+                                    <input type="number" class="form-control" name="prezzo_consigliato" min="0" placeholder="Es. 4500" required>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small fw-bold">Data Perizia</label>
+                                    <input type="date" class="form-control" name="data_perizia" required>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <label class="form-label small fw-bold">Descrizione Danni / Resoconto Tecnico</label>
+                                <textarea class="form-control" name="descrizione_danni" rows="2" placeholder="Inserisci eventuali anomalie riscontrate durante il controllo visivo o meccanico..." required></textarea>
+                            </div>
+                            <div class="mt-4 text-end">
+                                <button type="submit" class="btn btn-warning px-4 fw-bold">Invia Resoconto all'Admin 📩</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+        </div>
+    {% else %}
+        <div class="alert alert-info">
+            📭 Nessuna richiesta di valutazione usato inserita dai clienti al momento.
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
