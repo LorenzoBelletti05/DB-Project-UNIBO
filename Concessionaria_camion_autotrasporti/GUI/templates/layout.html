@@ -2,19 +2,28 @@
 <html lang="it">
 <head>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <title>AutoGest PRO</title>
+    <title>Autotrasporti S.r.l.</title>
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-light bg-light shadow-sm mb-4">
         <div class="container">
-            <a class="navbar-brand" href="/">AutoGest PRO</a>
-            <div class="navbar-nav ms-auto">
+            <a class="navbar-brand" href="/">Autotrasporti S.r.l.</a>
+            <div class="navbar-nav ms-auto align-items-center">
+                
                 {% if session.get('ruolo') == 4 %}
-                    <a class="nav-link" href="/admin/add_crew">Gestione Utenti</a> 
-                    <a class="nav-link" href="/admin/catalog">Gestione Catalogo</a>
+                    <a class="nav-link" href="/admin/utenti">Gestione Utenti</a>
+                    <a class="nav-link fw-bold" href="/admin/catalog">Gestione Catalogo</a>
+                
                 {% elif session.get('ruolo') == 1 %}
                     <a class="nav-link" href="/area_cliente">La mia Area</a>
+                    <a class="nav-link fw-bold text-primary" href="/catalog">📖 Public Catalog</a>
+                
+                {% elif session.get('ruolo') == 3 %} 
+                    <a class="nav-link" href="/catalog">📖 Public Catalog</a>
+                    <a class="nav-link" href="/salesperson">💼 Sales Dashboard</a>
+                    <a class="nav-link" href="/transaction_wizard">📝 New Transaction</a>
                 {% endif %}
+                
                 <a href="/logout" class="btn btn-outline-danger btn-sm ms-3">Esci</a>
             </div>
         </div>

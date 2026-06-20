@@ -13,7 +13,19 @@
         <li class="nav-item" role="presentation">
             <button class="nav-link fw-bold" id="veicoli-tab" data-bs-toggle="tab" data-bs-target="#veicoli-pane" type="button" role="tab">Inventario Veicoli</button>
         </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-bold"
+                    id="archivio-tab"
+                    data-bs-toggle="tab"
+                    data-bs-target="#archivio-pane"
+                    type="button"
+                    role="tab">
+                Archivio
+            </button>
+        </li>
     </ul>
+
+    
 
     <div class="tab-content" id="catalogoTabsContent">
         
@@ -44,7 +56,6 @@
                                         <th>ID</th>
                                         <th>Nome Marca</th>
                                         <th>Stato</th>
-                                        <th class="text-end">Azioni</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -59,13 +70,10 @@
                                                 <span class="badge bg-secondary">Disattivata</span>
                                             {% endif %}
                                         </td>
-                                        <td class="text-end">
-                                            <button class="btn btn-sm btn-outline-secondary">Modifica</button>
-                                        </td>
                                     </tr>
                                     {% else %}
                                     <tr>
-                                        <td colspan="4" class="text-center text-muted py-3">Nessuna marca presente nel database.</td>
+                                        <td colspan="3" class="text-center text-muted py-3">Nessuna marca presente nel database.</td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
@@ -77,26 +85,43 @@
         </div>
 
         <div class="tab-pane fade" id="veicoli-pane" role="tabpanel" tabindex="0">
-            <div class="d-flex justify-content-between mb-3">
-                <h5 class="mb-0 align-self-center">Tutti i Veicoli</h5>
-                <button class="btn btn-success">+ Nuovo Veicolo</button>
+            
+            <div class="d-flex justify-content-between mb-3 align-items-center">
+                <h5 class="mb-0">Tutti i Veicoli</h5>
+                <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalVeicolo">
+                    + Nuovo Veicolo
+                </button>
             </div>
+
             <div class="card shadow-sm">
                 <div class="card-body p-0">
-                    <table class="table table-striped mb-0">
+                    <table class="table table-hover table-striped mb-0 align-middle">
                         <thead class="table-dark">
                             <tr>
-                                <th>Targa</th>
+                                <th>Targa / Telaio</th>
                                 <th>Modello</th>
+                                <th>Anno</th>
+                                <th>Km</th>
+                                <th>Motrice / Assi</th>
                                 <th>Prezzo Base</th>
-                                <th>Disponibilità</th>
+                                <th>Stato</th>
+                                <th class="text-end">Azioni</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for veicolo in veicoli %}
                             <tr>
-                                <td class="text-uppercase fw-bold">{{ veicolo.Targa }}</td>
-                                <td>{{ veicolo.Modello }}</td>
+                                <td>
+                                    <span class="text-uppercase fw-bold">{{ veicolo.Targa }}</span><br>
+                                    <small class="text-muted">{{ veicolo.NumeroTelaio }}</small>
+                                </td>
+                                <td class="fw-bold">{{ veicolo.Modello }}</td>
+                                <td>{{ veicolo.Anno_Produzione }}</td>
+                                <td>{{ veicolo.Kilometraggio }}</td>
+                                <td>
+                                    {{ veicolo.Tipologia_Motrice }}<br>
+                                    <small class="text-muted">{{ veicolo.Configurazione_Assi }}</small>
+                                </td>
                                 <td>€ {{ veicolo.Prezzo_Base }}</td>
                                 <td>
                                     {% if veicolo.Stato_Disponibilita == 'U' %}
@@ -105,18 +130,208 @@
                                         <span class="badge bg-success">Nuovo</span>
                                     {% endif %}
                                 </td>
+                                <td class="text-end">
+                                    <div class="btn-group">
+                                        <button class="btn btn-sm btn-outline-primary">
+                                            Dettagli
+                                        </button>
+
+                                        <button class="btn btn-sm btn-warning">
+                                            Archivia
+                                        </button>
+                                    </div>
+                                </td>
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="4" class="text-center text-muted py-4">Nessun veicolo presente in catalogo. Aggiungi prima una Marca.</td>
+                                <td colspan="8" class="text-center text-muted py-4">Nessun veicolo presente in catalogo.</td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
             </div>
-        </div>
 
+        </div>
+        
+        <div class="tab-pane fade" id="archivio-pane" role="tabpanel" tabindex="0">
+
+    <div class="d-flex justify-content-between mb-3 align-items-center">
+        <h5 class="mb-0">Veicoli Archiviati</h5>
+    </div>
+
+            <div class="card shadow-sm">
+                <div class="card-body p-0">
+                    <table class="table table-hover table-striped mb-0">
+                        <thead class="table-secondary">
+                            <tr>
+                                <th>Targa</th>
+                                <th>Telaio</th>
+                                <th>Modello</th>
+                                <th>Data Inserimento</th>
+                                <th>Azioni</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            {% for veicolo in veicoli_archiviati %}
+                            <tr>
+                                <td>{{ veicolo.Targa }}</td>
+                                <td>{{ veicolo.NumeroTelaio }}</td>
+                                <td>{{ veicolo.Modello }}</td>
+                                <td>{{ veicolo.Data_Inserimento }}</td>
+
+                                <td>
+                                    <button class="btn btn-sm btn-success">
+                                        Ripristina
+                                    </button>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-4">
+                                    Nessun veicolo archiviato.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalVeicolo" tabindex="-1" aria-labelledby="modalVeicoloLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg"> <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="modalVeicoloLabel">Registra Nuovo Veicolo</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            
+            <form method="POST" action="/admin/catalog">
+                <div class="modal-body">
+                    <input type="hidden" name="aggiungi_veicolo" value="1">
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Marca</label>
+                            <select name="id_marca" class="form-select" required>
+                                <option value="" disabled selected>Seleziona...</option>
+                                {% for marca in marche %}
+                                    {% if marca.Attiva == 'Y' %}
+                                        <option value="{{ marca.ID_Marca }}">{{ marca.Nome }}</option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Targa / Telaio</label>
+                            <input type="text" name="targa" class="form-control text-uppercase" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Modello</label>
+                            <input type="text" name="modello" class="form-control" required>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Condizione</label>
+                            <select name="stato" class="form-select" required>
+                                <option value="N">Nuovo</option>
+                                <option value="U">Usato</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Prezzo Base (€)</label>
+                            <input type="number" step="0.01" name="prezzo" class="form-control" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Data Arrivo in Salone</label>
+                            <input type="date" name="data_arrivo" class="form-control" required>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Anno Produzione</label>
+                            <input type="number" name="anno" class="form-control" placeholder="es. 2024" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Classe Inquinamento</label>
+                            <select name="classe_inquinamento" class="form-select" required>
+                                <option value="" disabled selected>Seleziona...</option>
+                                <option value="Euro 6">Euro 6</option>
+                                <option value="Euro 5">Euro 5</option>
+                                <option value="Euro 4">Euro 4</option>
+                                <option value="Elettrica">Elettrica</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Data Immatricolazione</label>
+                            <input type="date" name="data_immatricolazione" class="form-control" required>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <label class="form-label">Kilometraggio</label>
+                            <input type="number" name="chilometraggio" class="form-control" value="0" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Potenza (CV)</label>
+                            <input type="number" name="potenza_cv" class="form-control" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Peso (Kg)</label>
+                            <input type="number" step="0.1" name="peso" class="form-control" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Config. Assi</label>
+                            <select name="configurazione_assi" class="form-select" required>
+                                <option value="4x2">4x2</option>
+                                <option value="6x2">6x2</option>
+                                <option value="8x4">8x4</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Numero Assi</label>
+                            <input type="number" name="numero_assi" class="form-control" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Numero Telaio (VIN)</label>
+                            <input type="text" name="numero_telaio" class="form-control text-uppercase" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Tipologia Motrice</label>
+                            <select name="tipologia_motrice" class="form-select" required>
+                                <option value="Trattore Stradale">Trattore Stradale</option>
+                                <option value="Motrice">Motrice</option>
+                                <option value="Furgone">Furgone</option>
+                                <option value="Autovettura">Autovettura</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Descrizione / Note</label>
+                        <textarea name="descrizione" class="form-control" rows="2" placeholder="Breve descrizione del veicolo..." required></textarea>
+                    </div>
+
+                </div>
+                <div class="modal-footer d-flex justify-content-between">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-success">Salva in Catalogo</button>
+                </div>
+            </form>
+            
+        </div>
     </div>
 </div>
 {% endblock %}

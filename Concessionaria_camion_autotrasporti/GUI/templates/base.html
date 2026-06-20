@@ -11,8 +11,22 @@
         {% elif session.get('ruolo') == 1 %}
             <a href="/mie_auto">Le mie auto</a>
             <a href="/prenota">Prenota intervento</a>
+            <a href="/catalog">Public Catalog</a>
+        
+        {% elif session.get('ruolo') == 2 %}
+            <a href="/catalog">Public Catalog</a>
+            <a href="/salesperson">Sales Dashboard</a>
+            <a href="/transaction_wizard">New Transaction</a>
+            <a href="/test_drive_calendar">Test Drive Calendar</a>
+        {% elif session.get('ruolo') == 5 %}
+            <a href="/catalog">Public Catalog</a>
+            <a href="/test_drive_calendar">Test Drive Calendar</a>
         {% endif %}
     </nav>
+    </head>
+<body>
+    
+    {% block content %}{% endblock %}
 
 </body>
 </html>

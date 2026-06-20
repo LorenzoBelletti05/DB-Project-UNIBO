@@ -1,0 +1,170 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="row mt-4 mb-5">
+    
+    <aside class="col-md-3 mb-4">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-primary text-white fw-bold">
+                🔍 Filter Vehicles
+            </div>
+            <div class="card-body bg-light">
+                <form id="filter-form" method="GET" action="/catalog">
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-dark">Condition</label>
+                        <select name="condition" class="form-select border-primary">
+                            <option value="">All</option>
+                            <option value="New">New</option>
+                            <option value="Used">Used</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-dark">Brand</label>
+                        <select name="brand" class="form-select">
+                            <option value="">All Brands</option>
+                            {% for brand in brands %}
+                            <option value="{{ brand.name }}">{{ brand.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-dark">Model</label>
+                        <input type="text" name="model" class="form-control" placeholder="e.g. FH16, Stralis...">
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-dark">Max Price (€)</label>
+                        <input type="number" name="max_price" class="form-control" placeholder="e.g. 80000">
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100 fw-bold">Apply Filters</button>
+                    <a href="/catalog" class="btn btn-outline-secondary w-100 mt-2">Reset</a>
+                </form>
+            </div>
+        </div>
+    </aside>
+
+    <main class="col-md-9">
+        <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
+            <h3 class="h4 text-primary mb-0">Public Catalog</h3>
+            <span class="badge bg-secondary fs-6">{{ vehicles|length }} vehicles found</span>
+        </div>
+
+        <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
+            {% for vehicle in vehicles %}
+            <div class="col">
+                <div class="card h-100 shadow-sm border-0 transition-hover">
+                    <img src="https://via.placeholder.com/400x250/e9ecef/495057?text={{ mappa_marche.get(vehicle.ID_Marca, 'Marca') }}+{{ vehicle.Modello }}" class="card-img-top" alt="Vehicle Image">
+                    
+                    <div class="card-body">
+                        <h5 class="card-title fw-bold text-uppercase">{{ mappa_marche.get(vehicle.ID_Marca, '') }} {{ vehicle.Modello }}</h5>
+                        <p class="card-text text-muted mb-2 small">
+                            📅 Year: {{ vehicle.Anno_Produzione }} <br>
+                            {% if vehicle.Stato_Disponibilita == 'U' %} 🛣️ Mileage: {{ vehicle.Kilometraggio }} km {% endif %}
+                        </p>
+                        <h4 class="text-success mb-3">€ {{ vehicle.Prezzo_Base }}</h4>
+                        
+                        <span class="badge {% if vehicle.Stato_Disponibilita == 'N' %}bg-success{% else %}bg-info text-dark{% endif %} mb-1">
+                            {% if vehicle.Stato_Disponibilita == 'N' %}New{% else %}Used{% endif %}
+                        </span>
+                        <span class="badge bg-dark">{{ vehicle.Tipologia_Motrice }}</span>
+                    </div>
+                    
+                    <div class="card-footer bg-white border-top-0 d-flex justify-content-between pb-3">
+                        <button class="btn btn-sm btn-outline-primary fw-bold" data-id="{{ vehicle.NumeroTelaio }}" data-name="{{ mappa_marche.get(vehicle.ID_Marca, '') }} {{ vehicle.Modello }}" onclick="showOptionals(this.getAttribute('data-id'), this.getAttribute('data-name'))">⚙️ Optionals</button>
+                        <button class="btn btn-sm btn-primary">Details</button>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="col-12 text-center py-5">
+                <h4 class="text-muted mb-3">No vehicles found 🚛</h4>
+                <p>Try modifying your filters to find what you are looking for.</p>
+            </div>
+            {% endfor %}
+        </div>
+    </main>
+</div>
+
+<div class="modal fade" id="optionalsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title" id="optionalsModalTitle">Vehicle Optionals</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body bg-light" id="optionalsModalBody">
+                <div class="text-center py-3">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p class="mt-2 text-muted">Loading optionals...</p>
+                </div>
+            </div>
+            <div class="modal-footer d-flex justify-content-between">
+                <h5 class="mb-0 text-success" id="optionalsTotalBox">Extra: € 0</h5>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+// MODIFICA QUI: Inserita la vera chiamata fetch() al database
+function showOptionals(vehicleId, vehicleName) {
+    const modal = new bootstrap.Modal(document.getElementById('optionalsModal'));
+    document.getElementById('optionalsModalTitle').innerText = `Optionals for: ${vehicleName}`;
+    
+    const body = document.getElementById('optionalsModalBody');
+    body.innerHTML = `<div class="text-center py-3"><div class="spinner-border text-primary"></div><p class="mt-2 text-muted">Loading...</p></div>`;
+    document.getElementById('optionalsTotalBox').innerText = `Extra: € 0`;
+    
+    modal.show();
+
+    fetch(`/api/optional/${vehicleId}`)
+        .then(response => response.json())
+        .then(optionals => {
+            if (optionals.length === 0) {
+                body.innerHTML = '<p class="text-center text-muted my-4">Nessun optional extra disponibile per questo veicolo.</p>';
+                return;
+            }
+
+            let htmlContent = '<ul class="list-group mb-3">';
+            optionals.forEach(opt => {
+                htmlContent += `
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <input class="form-check-input me-2 opt-checkbox" type="checkbox" value="${opt.prezzo}" onchange="calculateTotal()">
+                        ${opt.nome}
+                    </div>
+                    <span class="badge bg-success rounded-pill">+ €${opt.prezzo}</span>
+                </li>`;
+            });
+            htmlContent += '</ul>';
+            
+            body.innerHTML = htmlContent;
+            calculateTotal();
+        })
+        .catch(error => {
+            console.error("Errore nel recupero degli optional:", error);
+            body.innerHTML = '<p class="text-center text-danger my-4">Errore di connessione al database per gli optional.</p>';
+        });
+}
+
+function calculateTotal() {
+    let total = 0;
+    document.querySelectorAll('.opt-checkbox:checked').forEach(checkbox => {
+        total += parseInt(checkbox.value);
+    });
+    document.getElementById('optionalsTotalBox').innerText = `Extra: € ${total}`;
+}
+</script>
+
+<style>
+.transition-hover { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+.transition-hover:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important; }
+</style>
+{% endblock %}

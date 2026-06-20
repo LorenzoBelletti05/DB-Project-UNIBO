@@ -1,11 +1,12 @@
 {% extends "layout.html" %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="row mb-4 align-items-center">
+<div class="container mt-4 mb-5">
+    
+    <div class="row mb-4 align-items-center border-bottom pb-3">
         <div class="col">
-            <h1 class="fw-bold">👋 Benvenuto, {{ session.nome }}!</h1>
-            <p class="text-muted">Gestisci i tuoi veicoli e i servizi di manutenzione da un'unica schermata.</p>
+            <h2 class="fw-bold text-primary mb-1">👋 Benvenuto, {{ session.nome }}!</h2>
+            <p class="text-muted mb-0">Gestisci i tuoi veicoli e i servizi di manutenzione da un'unica schermata.</p>
         </div>
         <div class="col-auto">
             <a href="/logout" class="btn btn-outline-danger shadow-sm">
@@ -13,15 +14,14 @@
             </a>
         </div>
     </div>
-    
-    <hr class="mb-4">
 
-    <div class="row g-4">
+    <div class="row g-4 mb-5">
         
-        <div class="col-md-6">
-            <div class="card h-100 shadow-sm border-0 border-top border-primary border-4 rounded-3">
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm border-0 border-top border-primary border-4 rounded-3 text-center">
                 <div class="card-body p-4 d-flex flex-column">
-                    <h5 class="card-title fw-bold text-primary mb-3">🚗 Le Mie Auto</h5>
+                    <h1 class="display-4 mb-3">🚗</h1>
+                    <h5 class="card-title fw-bold text-primary mb-3">Il mio Garage</h5>
                     <p class="card-text text-muted flex-grow-1">Visualizza il garage virtuale con tutti i veicoli attualmente registrati a tuo nome e controlla i loro dettagli.</p>
                     <div class="mt-3">
                         <a href="/mie_auto" class="btn btn-primary px-4 shadow-sm w-100">Accedi al Garage →</a>
@@ -30,29 +30,46 @@
             </div>
         </div>
 
-        <div class="col-md-6">
-            <div class="card h-100 shadow-sm border-0 border-top border-success border-4 rounded-3">
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm border-0 border-top border-warning border-4 rounded-3 text-center">
                 <div class="card-body p-4 d-flex flex-column">
-                    <h5 class="card-title fw-bold text-success mb-3">🔧 Prenota Intervento</h5>
-                    <p class="card-text text-muted flex-grow-1">Hai un problema con il veicolo? Prenota un appuntamento nella nostra officina. Potrai selezionare la data, l'ora e descrivere il guasto.</p>
+                    <h1 class="display-4 mb-3">🔧</h1>
+                    <h5 class="card-title fw-bold text-warning mb-3 text-dark">Prenota Intervento</h5>
+                    <p class="card-text text-muted flex-grow-1">Hai un guasto? Prenota un appuntamento nella nostra officina. Scegli data, ora e descrivi il problema.</p>
                     <div class="mt-3">
-                        <a href="/prenota" class="btn btn-success px-4 shadow-sm w-100">Nuova Prenotazione 📅</a>
+                        <a href="/prenota" class="btn btn-warning px-4 shadow-sm w-100 fw-bold">Nuova Prenotazione 📅</a>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-12 mt-2">
-            <div class="card shadow-sm border-0 border-top border-dark border-4 rounded-3">
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm border-0 border-top border-success border-4 rounded-3 text-center">
                 <div class="card-body p-4 d-flex flex-column">
-                    <h5 class="card-title fw-bold text-dark mb-3">💰 Valutazione del tuo Usato</h5>
-                    <p class="card-text text-muted flex-grow-1">Vuoi cambiare mezzo? Proponici il tuo veicolo usato. I nostri meccanici effettueranno una perizia tecnica e ti faremo un'offerta per l'acquisto.</p>
+                    <h1 class="display-4 mb-3">🤝</h1>
+                    <h5 class="card-title fw-bold text-success mb-3">Vendi il tuo Usato</h5>
+                    <p class="card-text text-muted flex-grow-1">Vuoi cambiare mezzo? Proponici il tuo veicolo usato. I nostri meccanici effettueranno una perizia tecnica.</p>
                     <div class="mt-3">
-                        <a href="/proponi_usato" class="btn btn-dark px-4 shadow-sm">Richiedi Valutazione Usato →</a>
+                        <a href="/proponi_usato" class="btn btn-success px-4 shadow-sm w-100">Richiedi Valutazione →</a>
                     </div>
                 </div>
             </div>
         </div>
 
-    </div> 
-</div> {% endblock %}
+    </div>
+
+    <div class="card shadow-sm border-0 rounded-3">
+        <div class="card-header bg-white fw-bold py-3 text-secondary">
+            📋 Recenti Attività
+        </div>
+        <div class="card-body p-0">
+            <ul class="list-group list-group-flush">
+                <li class="list-group-item py-4 text-muted text-center border-0">
+                    Nessuna attività recente da mostrare.
+                </li>
+            </ul>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

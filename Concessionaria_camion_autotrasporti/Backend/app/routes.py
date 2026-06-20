@@ -1,6 +1,6 @@
 from functools import wraps
-from flask import Blueprint, render_template, request, redirect, session, flash
-from .db import supabase
+from flask import Blueprint, render_template, request, redirect, session, flash, jsonify
+from .db import supabase 
 
 main = Blueprint('main', __name__)
 
@@ -9,7 +9,6 @@ def ruolo_richiesto(ruolo_necessario):
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
-            # Controlla se l'utente è loggato e se il ruolo corrisponde
             if 'ruolo' not in session or session['ruolo'] != ruolo_necessario:
                 flash("Non hai i permessi necessari per accedere a quest'area.", "danger")
                 return redirect('/login')
@@ -25,7 +24,6 @@ def login():
         password = request.form.get('password')
 
         try:
-            # QUERY: Ricerca utente usando 'Mail'
             response = supabase.table('PERSONA').select('*').eq('Mail', email).execute()
             utenti = response.data
 
@@ -34,16 +32,17 @@ def login():
                 return redirect('/login')
                 
             utente = utenti[0]
-            # Controllo password
             if utente['Password'] == password:
                 session['user_id'] = utente['ID_Persona']
                 session['ruolo'] = utente['Ruolo'] 
                 session['nome'] = utente['Nome']
 
-                # SMISTAMENTO AUTOMATICO DOPO IL LOGIN
+                # SMISTAMENTO AUTOMATICO DOPO IL LOGIN (COMPLETO)
                 if utente['Ruolo'] == 4:
                     return redirect('/dashboard_admin')
-                elif utente['Ruolo'] == 2:  # 2 è il Meccanico nel tuo DB
+                elif utente['Ruolo'] == 3:
+                    return redirect('/salesperson')
+                elif utente['Ruolo'] == 2:
                     return redirect('/dashboard_meccanico')    
                 elif utente['Ruolo'] == 1:
                     return redirect('/area_cliente')
@@ -81,7 +80,7 @@ def registrazione():
             "Telefono": request.form.get('telefono'),
             "Mail": mail,
             "Password": request.form.get('password'),
-            "Ruolo": 1  # 1 = Cliente
+            "Ruolo": 1  
         }
         
         supabase.table('PERSONA').insert(nuovo_utente).execute()
@@ -93,14 +92,22 @@ def registrazione():
         flash("Errore nel salvataggio dati.", "danger")
         return redirect('/login')
 
-# --- HOME / SMISTAMENTO CENTRALE ---
+# --- HOME / SMISTAMENTO CENTRALE UNIFICATO ---
 @main.route('/')
 def home():
-    if 'user_id' not in session: return redirect('/login')
-    if session['ruolo'] == 4: return redirect('/dashboard_admin')
-    if session['ruolo'] == 2: return redirect('/dashboard_meccanico')
-    if session['ruolo'] == 1: return redirect('/area_cliente')
-    return "Benvenuto!"
+    if 'user_id' not in session: 
+        return redirect('/login')
+        
+    if session['ruolo'] == 4: 
+        return redirect('/dashboard_admin')     
+    elif session['ruolo'] == 3:                
+        return redirect('/salesperson')         
+    elif session['ruolo'] == 2:
+        return redirect('/dashboard_meccanico')
+    elif session['ruolo'] == 1: 
+        return redirect('/area_cliente')        
+        
+    return f"Benvenuto {session.get('nome', '')}! Il tuo ruolo ({session['ruolo']}) non ha ancora una home dedicata."
 
 # --- ROTTA DASHBOARD AMMINISTRATORE ---
 @main.route('/dashboard_admin')
@@ -135,7 +142,7 @@ def area_cliente():
 @ruolo_richiesto(4)
 def gestione_utenti():
     response = supabase.table('PERSONA').select('*').execute()
-    return render_template('admin_utenti.html', utenti=response.data)
+    return render_template('admin/admin_user.html', utenti=response.data)
 
 # --- LOGOUT ---
 @main.route('/logout')
@@ -145,10 +152,10 @@ def logout():
 
 # --- AMMINISTRAZIONE: ASSUMI DIPENDENTE ---
 @main.route('/admin/add_crew', methods=['GET', 'POST'])
-@ruolo_richiesto(4)  
+@ruolo_richiesto(4) 
 def add_crew():
     if request.method == 'POST':
-        ruolo_scelto = int(request.form.get('ruolo'))
+        ruolo_scelto = int(request.form.get('ruolo')) 
         mail = request.form.get('mail')
         try:
             controllo = supabase.table('PERSONA').select('*').eq('Mail', mail).execute()
@@ -175,12 +182,13 @@ def add_crew():
             return redirect('/admin/add_crew')
     return render_template('admin/add_crew.html')
 
-# --- AMMINISTRAZIONE: CATALOGO ---
+# --- AMMINISTRAZIONE: CATALOGO (MERGED) ---
 @main.route('/admin/catalog', methods=['GET', 'POST'])
 @ruolo_richiesto(4) 
 def gestione_catalogo():
     if request.method == 'POST':
-        if 'aggiungi_marca' in request.form:
+        # Sotto-Azione A: Aggiungi Marca (Tua Funzione)
+        if 'aggiungi_marca' in request.form: 
             nome_marca = request.form.get('nome_marca')
             try:
                 supabase.table('MARCA').insert({"Nome": nome_marca, "Attiva": "Y"}).execute()
@@ -189,14 +197,60 @@ def gestione_catalogo():
                 print(f"ERRORE MARCA: {e}")
                 flash("Errore durante l'inserimento della marca.", "danger")
             return redirect('/admin/catalog')
+
+        # Sotto-Azione B: Aggiungi Veicolo (Funzione del Team)
+        if 'aggiungi_veicolo' in request.form:
+            try:
+                numero_telaio = request.form.get('numero_telaio', '').upper()[:17]
+                stato_veicolo = request.form.get('stato', 'N')[:1].upper() 
+
+                km_form = request.form.get('chilometraggio')
+                km = int(km_form) if km_form and km_form.strip() else 0
+                if stato_veicolo == 'N':
+                    km = 0  
+
+                num_assi_form = request.form.get('numero_assi')
+                num_assi = int(num_assi_form) if num_assi_form and num_assi_form.strip() else 2
+                
+                conf_assi_form = request.form.get('configurazione_assi')
+                conf_assi = conf_assi_form[:3] if conf_assi_form and conf_assi_form.strip() else '4x2'
+
+                descrizione = request.form.get('descrizione')
+                desc_pulita = descrizione[:100] if descrizione else "N/A"
+
+                nuovo_veicolo = {
+                    "NumeroTelaio": numero_telaio,
+                    "Targa": request.form.get('targa', '')[:20].upper(),
+                    "Modello": request.form.get('modello', 'Sconosciuto')[:15],
+                    "Anno_Produzione": int(request.form.get('anno') or 2024),
+                    "Data_Arrivo_Concessionaria": request.form.get('data_arrivo'),
+                    "Classe_Inquinamento": request.form.get('classe_inquinamento', 'Euro 6')[:6],
+                    "Configurazione_Assi": conf_assi,
+                    "Numero_Assi": num_assi,
+                    "Tipologia_Motrice": request.form.get('tipologia_motrice', 'Motrice')[:15],
+                    "Peso": float(request.form.get('peso') or 0.0),
+                    "Descrizione": desc_pulita,
+                    "Prezzo_Base": float(request.form.get('prezzo') or 0.0),
+                    "Data_Immatricolazione": request.form.get('data_immatricolazione') or None,
+                    "Potenza_CV": int(request.form.get('potenza_cv') or 0),
+                    "Stato_Disponibilita": stato_veicolo,
+                    "ID_Marca": int(request.form.get('id_marca') or 1),
+                    "Kilometraggio": km
+                }
+                
+                supabase.table('VEICOLO').insert(nuovo_veicolo).execute()
+                flash(f"Veicolo {nuovo_veicolo['Modello']} inserito correttamente nel catalogo!", "success")
+            except Exception as e:
+                print(f"ERRORE VEICOLO: {e}")
+                flash("Errore durante il salvataggio del veicolo. Controlla i dati inseriti.", "danger")
+            return redirect('/admin/catalog')
+
     try:
-        res_marche = supabase.table('MARCA').select('*').execute()
-        lista_marche = res_marche.data
-        res_veicoli = supabase.table('VEICOLO').select('*').execute()
-        lista_veicoli = res_veicoli.data
-    except Exception as e:
-        print(f"ERRORE LETTURA CATALOGO: {e}")
+        lista_marche = supabase.table('MARCA').select('*').execute().data
+        lista_veicoli = supabase.table('VEICOLO').select('*').execute().data
+    except:
         lista_marche, lista_veicoli = [], []
+
     return render_template('admin/catalog.html', marche=lista_marche, veicoli=lista_veicoli)
 
 # --- ROTTA DASHBOARD MECCANICO (KANBAN BOARD) ---
@@ -244,23 +298,18 @@ def prenota_intervento():
             telaio = request.form.get('telaio').upper()
             id_cliente = session.get('user_id')
 
-            # 🛠️ GESTIONE AUTO-REGISTRAZIONE VEICOLO:
-            # Controlliamo se questa macchina esiste già nel DB tramite il Numero di Telaio
             res_veicolo = supabase.table('VEICOLO').select('NumeroTelaio').eq('NumeroTelaio', telaio).execute()
             
             if not res_veicolo.data:
-                # Se l'auto NON esiste nel database, la creiamo al volo in automatico 
-                # per evitare che la Foreign Key fallisca!
                 nuovo_veicolo_generico = {
                     "NumeroTelaio": telaio,
                     "Targa": targa,
-                    "Modello": "Auto Cliente",  # Nome di default generico
-                    "Kilometraggio": 0,          # Sarà aggiornato dal meccanico all'arrivo
-                    "ID_Marca": 1                # ID di default generico (Fiat o generica)
+                    "Modello": "Auto Cliente",  
+                    "Kilometraggio": 0,          
+                    "ID_Marca": 1                
                 }
                 supabase.table('VEICOLO').insert(nuovo_veicolo_generico).execute()
 
-            # Ora che siamo SICURI al 100% che il veicolo esiste, inseriamo la prenotazione
             nuova_prenotazione = {
                 "ID_Persona": id_cliente,
                 "Targa": targa,
@@ -282,9 +331,7 @@ def prenota_intervento():
             
     return render_template('prenotazioni/prenota.html')
 
-# =====================================================================
 # --- WIZARD USATO FASE 1: PROPOSTA CLIENTE (LATO CLIENTE) ---
-# =====================================================================
 @main.route('/proponi_usato', methods=['GET', 'POST'])
 @ruolo_richiesto(1)
 def proponi_usato():
@@ -292,30 +339,22 @@ def proponi_usato():
         try:
             targa = request.form.get('targa').upper()
             telaio = request.form.get('telaio').upper()
-            
-            # Formattiamo bene il nome inserito dall'utente (es. "scania" -> "Scania")
             nome_marca_inserita = request.form.get('marca').strip().capitalize()
             
-            # --- MAGIA DINAMICA: Gestione della Marca ---
-            # 1. Cerchiamo se la marca esiste già nel DB
             res_marca = supabase.table('MARCA').select('ID_Marca').eq('Nome', nome_marca_inserita).execute()
             
             if res_marca.data:
-                # Se la marca esiste già, prendiamo il suo ID
                 id_marca_corretta = res_marca.data[0]['ID_Marca']
             else:
-                # Se non esiste, la inseriamo automaticamente nel catalogo!
                 res_nuova = supabase.table('MARCA').insert({"Nome": nome_marca_inserita, "Attiva": "Y"}).execute()
-                # E recuperiamo il nuovo ID appena generato
                 id_marca_corretta = res_nuova.data[0]['ID_Marca']
 
-            # PASSO 1: Inseriamo il veicolo
             nuovo_veicolo = {
                 "NumeroTelaio": telaio,
                 "Targa": targa,
                 "Modello": request.form.get('modello')[:15], 
                 "Kilometraggio": int(request.form.get('km')), 
-                "ID_Marca": id_marca_corretta  # 🛑 ORA USA L'ID REALE, NON PIÙ 1 FISSO!
+                "ID_Marca": id_marca_corretta  
             }
             
             try:
@@ -325,7 +364,6 @@ def proponi_usato():
                 flash(f"Impossibile registrare il veicolo nei sistemi.", "danger")
                 return redirect('/proponi_usato')
                 
-            # PASSO 2: Inseriamo la pratica
             nuova_valutazione = {
                 "NumeroTelaio": telaio,
                 "Targa": targa,
@@ -344,9 +382,7 @@ def proponi_usato():
             
     return render_template('prenotazioni/proponi_usato.html')
 
-# =====================================================================
 # --- WIZARD USATO FASE 2: PERIZIA TECNICA (LATO MECCANICO) ---
-# =====================================================================
 @main.route('/meccanico/valutazioni', methods=['GET', 'POST'])
 @ruolo_richiesto(2)
 def perizia_meccanico():
@@ -369,20 +405,15 @@ def perizia_meccanico():
             flash(f"Errore DB: {str(e)}", "danger")
             return redirect('/meccanico/valutazioni')
 
-    # --- LATO GET (Lettura pratiche in attesa) ---
     try:
-        # FILTRO 1: Troviamo le auto che hanno già ricevuto una perizia dal meccanico
         res_esiti = supabase.table('Esito_MV').select('ID_Usato').execute()
         auto_gia_valutate = [r['ID_Usato'] for r in res_esiti.data]
 
-        # 🛑 FILTRO 2 (NUOVO): Troviamo le auto già ACCETTATE o RIFIUTATE definitivamente dall'Admin
         res_approvate = supabase.table('Approvazione_PV').select('ID_Usato').execute()
         auto_gia_approvate = [r['ID_Usato'] for r in res_approvate.data]
 
-        # Uniamo le esclusioni in un unico set per velocizzare il controllo
         esclusioni = set(auto_gia_valutate + auto_gia_approvate)
 
-        # 1. Prendiamo tutte le pratiche proposte dai clienti
         res_val = supabase.table('VALUTAZIONE_USATO').select('*').execute()
         pratiche_raw = res_val.data
         pratiche_completate = []
@@ -390,7 +421,6 @@ def perizia_meccanico():
         for p in pratiche_raw:
             id_usato = p.get("ID_Usato")
             
-            # Se la pratica è già stata gestita dal meccanico o chiusa dall'admin, la nascondiamo!
             if id_usato in esclusioni:
                 continue
 
@@ -400,19 +430,17 @@ def perizia_meccanico():
                 "NumeroTelaio": p.get("NumeroTelaio"),
                 "Data_Inizio": p.get("Data_Inizio"),
                 "ID_Persona": p.get("ID_Persona"),
-                "Marca": "N/D",  # Valore di default se non troviamo la marca
+                "Marca": "N/D",  
                 "Modello": "",
                 "Km": "N/D"
             }
             
-            # Recuperiamo i dettagli del veicolo tramite Telaio
             res_v = supabase.table('VEICOLO').select('*').eq('NumeroTelaio', p.get("NumeroTelaio")).execute()
             if res_v.data:
                 veicolo = res_v.data[0]
                 info_pratica["Modello"] = veicolo.get("Modello", "")
                 info_pratica["Km"] = veicolo.get("Kilometraggio", "N/D")
                 
-                # ✨ RISOLUZIONE BUG N/D: Recuperiamo il nome testuale della Marca usando l'ID_Marca
                 id_marca = veicolo.get("ID_Marca")
                 if id_marca:
                     res_m = supabase.table('MARCA').select('Nome').eq('ID_Marca', id_marca).execute()
@@ -428,9 +456,7 @@ def perizia_meccanico():
         flash(f"Impossibile caricare le valutazioni: {str(e)}", "danger")
         return redirect('/dashboard_meccanico')
 
-# =====================================================================
 # --- WIZARD USATO FASE 3: APPROVAZIONE FINALE (LATO ADMIN) ---
-# =====================================================================
 @main.route('/admin/approva_usato', methods=['GET', 'POST'])
 @ruolo_richiesto(4)
 def approva_usato():
@@ -441,16 +467,14 @@ def approva_usato():
             decisione = request.form.get('decisione') 
             note_admin = request.form.get('nota_proprietario', 'Approvato da Admin')
 
-            # 1. Aggiorniamo la chiusura della pratica su VALUTAZIONE_USATO
             supabase.table('VALUTAZIONE_USATO').update({
                 "Data_Fine": request.form.get('data_approvazione'),
                 "Prezzo_Finale": prezzo_finale
             }).eq('ID_Usato', id_pratica).execute()
 
-            # 2. Strutturiamo i dati per la tabella Approvazione_PV
             approvazione_data = {
-                "ID_Usato": id_pratica,                         
-                "Nota_Proprietario": note_admin[:500],           
+                "ID_Usato": id_pratica,                                          
+                "Nota_Proprietario": note_admin[:500],            
                 "Stato_Decisione": decisione[:1],                
                 "ID_Persona": session.get('user_id')            
             }
@@ -469,37 +493,25 @@ def approva_usato():
             flash(f"Supabase ha rifiutato l'approvazione. Errore: {str(e)}", "danger")
             return redirect('/admin/approva_usato')
 
-    # --- LATO GET (Lettura delle perizie da mostrare all'Admin senza JOIN fallimentari) ---
     try:
-        # 0. IL FILTRO INFALLIBILE: Prendiamo tutti gli ID delle pratiche GIÀ VALUTATE dall'Admin
         res_approvate = supabase.table('Approvazione_PV').select('ID_Usato').execute()
-        
-        # Creiamo una lista semplice in Python con solo i numeri delle pratiche concluse
         pratiche_gia_chiuse = [r['ID_Usato'] for r in res_approvate.data]
 
-        # 1. Prendiamo tutte le perizie tecniche inserite dai meccanici
         res_esiti = supabase.table('Esito_MV').select('*').execute()
         perizie_raw = res_esiti.data
-        
         perizie_completate = []
         
-        # 2. Per ogni perizia, andiamo a recuperare i dati e FILTRIAMO quelle concluse
         for perizia in perizie_raw:
             id_usato = perizia.get("ID_Usato")
             
-            # 🛑 FILTRO MAGICO 2.0: Se questo ID è già nella tabella Approvazione_PV, l'admin ha già deciso. SALTIAMO!
             if id_usato in pratiche_gia_chiuse:
                 continue
 
             id_meccanico = perizia.get("ID_Persona")
-            
-            # Recuperiamo i dati della VALUTAZIONE_USATO
             res_val = supabase.table('VALUTAZIONE_USATO').select('*').eq('ID_Usato', id_usato).execute()
             
             if res_val.data:
                 valutazione = res_val.data[0]
-                
-                # Se arriviamo qui, la pratica è ancora da approvare. Creiamo lo scheletro:
                 info_completa = {
                     "ID_Usato": id_usato,
                     "Descrizione": perizia.get("Descrizione"),
@@ -511,7 +523,6 @@ def approva_usato():
                     "NumeroTelaio": valutazione.get("NumeroTelaio")
                 }
                 
-                # Recuperiamo il Nome e Cognome del meccanico direttamente da PERSONA
                 res_pers = supabase.table('PERSONA').select('Nome', 'Cognome').eq('ID_Persona', id_meccanico).execute()
                 if res_pers.data:
                     persona = res_pers.data[0]
@@ -527,41 +538,36 @@ def approva_usato():
         flash(f"Impossibile caricare l'elenco delle perizie: {str(e)}", "danger")
         return redirect('/dashboard_admin')
 
-# --- AREA CLIENTE: IL MIO GARAGE ---
+# --- AREA CLIENTE: IL MIO GARAGE PERFECT FIX ---
 @main.route('/mie_auto')
 @ruolo_richiesto(1)
 def mie_auto():
     try:
         id_cliente = session.get('user_id')
         
-        # 1. Troviamo le auto che il cliente ha portato in officina (Prenotazioni)
         res_pren = supabase.table('PRENOTAZIONE').select('NumeroTelaio').eq('ID_Persona', id_cliente).execute()
         telai_prenotati = [r['NumeroTelaio'] for r in res_pren.data]
         
-        # 2. Troviamo le auto che il cliente ha proposto per la vendita (Valutazione Usato)
         res_val = supabase.table('VALUTAZIONE_USATO').select('NumeroTelaio').eq('ID_Persona', id_cliente).execute()
         telai_valutati = [r['NumeroTelaio'] for r in res_val.data]
         
-        # (Opzionale) Se avessimo contratti attivi, cercheremmo anche tramite ID_Contratto.
-        
-        # Uniamo tutti i numeri di telaio trovati ed eliminiamo i doppioni usando 'set'
         tutti_i_telai = list(set(telai_prenotati + telai_valutati))
-        
         auto_cliente = []
         
-        # Se abbiamo trovato almeno un'auto collegata a questo cliente, peschiamo i dettagli dal DB!
         if tutti_i_telai:
             res_veicoli = supabase.table('VEICOLO').select('*').in_('NumeroTelaio', tutti_i_telai).execute()
             auto_cliente = res_veicoli.data
             
-            # MAGIA EXTRA: Sostituiamo ID_Marca con il nome reale della marca per la grafica
+            # MAGIA DOPPIA CHIAVE: Evita colonne vuote nell'HTML sia se cerca 'Marca' che 'Nome_Marca'
             for auto in auto_cliente:
                 id_marca = auto.get('ID_Marca')
-                auto['Nome_Marca'] = "N/D" # Default
+                auto['Nome_Marca'] = "N/D"
+                auto['Marca'] = "N/D"
                 if id_marca:
                     res_marca = supabase.table('MARCA').select('Nome').eq('ID_Marca', id_marca).execute()
                     if res_marca.data:
                         auto['Nome_Marca'] = res_marca.data[0]['Nome']
+                        auto['Marca'] = res_marca.data[0]['Nome']
         
         return render_template('prenotazioni/mie_auto.html', auto=auto_cliente)
         
@@ -575,10 +581,8 @@ def mie_auto():
 @ruolo_richiesto(4) 
 def gestione_prenotazioni():
     try:
-        # 1. Recuperiamo tutte le prenotazioni pendenti
         res_pren = supabase.table('PRENOTAZIONE').select('*').is_('ID_Intervento', 'null').execute()
         prenotazioni_raw = res_pren.data
-
         prenotazioni_pendenti = []
         
         for pren in prenotazioni_raw:
@@ -594,7 +598,6 @@ def gestione_prenotazioni():
                     
             prenotazioni_pendenti.append(info_pren)
 
-        # 3. Recuperiamo SOLO l'elenco dei meccanici (Ruolo = 2)
         res_mecc = supabase.table('PERSONA').select('*').eq('Ruolo', 2).execute()
         meccanici = res_mecc.data
 
@@ -602,7 +605,6 @@ def gestione_prenotazioni():
                                prenotazioni=prenotazioni_pendenti, meccanici=meccanici)
                                
     except Exception as e:
-        # 🛑 ECCO LA SPIA: Questa riga blocca il sito e ti stampa in faccia l'errore vero!
         return f"<h1>🔴 CRASH GESTIONE PRENOTAZIONI</h1><p>L'errore esatto di Supabase è: <b>{str(e)}</b></p>"
 
 # --- AMMINISTRAZIONE: ASSEGNA IL LAVORO ---
@@ -618,7 +620,6 @@ def assegna_lavoro():
         nome_compito = request.form.get('nome_compito')
         durata = int(request.form.get('durata'))
 
-        # 1. Inseriamo l'Intervento 
         nuovo_intervento = {
             "Targa": targa, 
             "ID_Officina": 1, 
@@ -631,29 +632,130 @@ def assegna_lavoro():
             "Km_Veicolo": 0 
         }
         res_intervento = supabase.table('INTERVENTO').insert(nuovo_intervento).execute()
-
-        # 2. Catturiamo l'ID generato automaticamente
         id_intervento_db = res_intervento.data[0]['ID_Intervento']
 
-        # 3. Creiamo il record Compito agganciandoci la FK corretta
         nuovo_compito = {
             "ID_Intervento": id_intervento_db, 
             "ID_Persona": id_meccanico, 
             "Nome": nome_compito[:20], 
             "Durata": durata, 
             "Data_Inizio": data_inizio
-            # Abbiamo rimosso la chiave "Stato" che non esiste nel tuo DDL!
         }
         supabase.table('COMPITO').insert(nuovo_compito).execute()
 
-        # 4. Aggiorniamo la prenotazione legando l'intervento generato
         supabase.table('PRENOTAZIONE').update({"ID_Intervento": id_intervento_db}).eq('ID_Prenotazione', id_prenotazione).execute()
         
         flash("Lavoro assegnato con successo al meccanico!", "success")
         return redirect('/admin/prenotazioni')
         
     except Exception as e:
-        # Ripristinato il blocco try-except standard!
         print(f"🔴 ERRORE ASSEGNAZIONE LAVORO: {e}")
         flash(f"Errore DB durante l'assegnazione: {str(e)}", "danger")
         return redirect('/admin/prenotazioni')
+
+# --- ROTTA CATALOGO PUBBLICO (TEAM) ---
+@main.route('/catalog', methods=['GET'])
+def public_catalog():
+    try:
+        condizione = request.args.get('condition')
+        marca_nome = request.args.get('brand')
+        modello = request.args.get('model')
+        prezzo_max = request.args.get('max_price')
+
+        query = supabase.table('VEICOLO').select('*')
+
+        if condizione == 'New':
+            query = query.eq('Stato_Disponibilita', 'N')
+        elif condizione == 'Used':
+            query = query.eq('Stato_Disponibilita', 'U')
+
+        if modello:
+            query = query.ilike('Modello', f'%{modello}%')
+
+        if prezzo_max:
+            query = query.lte('Prezzo_Base', float(prezzo_max))
+
+        res_veicoli = query.execute()
+        vehicles = res_veicoli.data
+
+        res_marche = supabase.table('MARCA').select('*').eq('Attiva', 'Y').execute()
+        brands = res_marche.data
+        mappa_marche = {marca['ID_Marca']: marca['Nome'] for marca in brands}
+
+        if marca_nome:
+            id_marca_cercata = next((id_m for id_m, nome in mappa_marche.items() if nome == marca_nome), None)
+            if id_marca_cercata:
+                vehicles = [v for v in vehicles if v['ID_Marca'] == id_marca_cercata]
+            else:
+                vehicles = [] 
+
+    except Exception as e:
+        print(f"ERRORE CATALOGO PUBBLICO: {e}")
+        vehicles, brands, mappa_marche = [], [], {}
+
+    return render_template('public_catalog.html', vehicles=vehicles, brands=brands, mappa_marche=mappa_marche)
+
+# --- API OPTIONAL VEICOLO (TEAM) ---
+@main.route('/api/optional/<numero_telaio>', methods=['GET'])
+def get_optionals(numero_telaio):
+    try:
+        res_comp = supabase.table('Comprende_VO').select('ID_Optional').eq('NumeroTelaio', numero_telaio).execute()
+        id_optionals = [riga['ID_Optional'] for riga in res_comp.data]
+
+        if not id_optionals:
+            return jsonify([])
+        
+        res_opt = supabase.table('OPTIONAL').select('*').in_('ID_Optional', id_optionals).execute()
+        lista_optional = []
+        for opt in res_opt.data:
+            lista_optional.append({
+                "id": opt.get("ID_Optional", opt.get("id", 0)),
+                "nome": opt.get("Nome", opt.get("nome", "Optional")),
+                "prezzo": opt.get("Prezzo", opt.get("prezzo", 0))
+            })
+            
+        return jsonify(lista_optional)
+    except Exception as e:
+        print(f"ERRORE API OPTIONAL: {e}")
+        return jsonify([])
+
+# --- DASHBOARD VENDITORE (TEAM) ---
+@main.route('/salesperson', methods=['GET'])
+@ruolo_richiesto(3) 
+def salesperson_dashboard():
+    try:
+        res_veicoli = supabase.table('VEICOLO').select('*').execute()
+        veicoli_disponibili = len(res_veicoli.data)
+        quotes, test_drives = [], [] 
+    except Exception as e:
+        print(f"ERRORE DASHBOARD VENDITORE: {e}")
+        veicoli_disponibili, quotes, test_drives = 0, [], []
+
+    return render_template('salesperson_dashboard.html', 
+                           quotes=quotes, test_drives=test_drives, stock_count=veicoli_disponibili)
+
+# --- TRANSACTION WIZARD VENDITORE (TEAM) ---
+@main.route('/transaction_wizard', methods=['GET', 'POST'])
+@ruolo_richiesto(3) 
+def transaction_wizard():
+    if request.method == 'POST':
+        flash("Transazione/Preventivo generato con successo!", "success")
+        return redirect('/salesperson')
+
+    try:
+        res_clienti = supabase.table('PERSONA').select('*').eq('Ruolo', 1).execute()
+        clienti = res_clienti.data
+        res_veicoli = supabase.table('VEICOLO').select('*').execute()
+        veicoli = res_veicoli.data
+        res_marche = supabase.table('MARCA').select('*').execute()
+        mappa_marche = {marca['ID_Marca']: marca['Nome'] for marca in res_marche.data}
+    except Exception as e:
+        print(f"ERRORE WIZARD: {e}")
+        clienti, veicoli, mappa_marche = [], [], {}
+
+    return render_template('sales/transaction_wizard.html', clienti=clienti, veicoli=veicoli, mappa_marche=mappa_marche)
+
+# --- CALENDARIO TEST DRIVE (TEAM) ---
+@main.route('/test_drive_calendar', methods=['GET'])
+def test_drive_calendar():
+    return render_template('test_drive_calendar.html')
