@@ -48,8 +48,8 @@
                             <select name="targa_veicolo" class="form-select border-primary" required>
                                 <option value="" disabled selected>Scegli dal parco auto...</option>
                                 {% for veicolo in veicoli %}
-                                    <option value="{{ veicolo.Targa }}">
-                                        {{ mappa_marche.get(veicolo.ID_Marca, '') }} {{ veicolo.Modello }} - Targa/Telaio: {{ veicolo.Targa }} (Listino: €{{ veicolo.Prezzo_Base }})
+                                    <option value="{{ veicolo.NumeroTelaio }}">
+                                        {{ mappa_marche.get(veicolo.ID_Marca, '') }} {{ veicolo.Modello }} - Targa/Telaio: {{ veicolo.Targa }}
                                     </option>
                                 {% endfor %}
                             </select>

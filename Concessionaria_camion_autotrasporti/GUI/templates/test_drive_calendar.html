@@ -1,9 +1,11 @@
-{% extends "base.html" %}
+{% extends "layout.html" %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
     <h2 class="h3 text-primary mb-0">Test Drive Calendar</h2>
-    <button class="btn btn-primary fw-bold">+ New Booking</button>
+    <button class="btn btn-primary fw-bold" data-bs-toggle="modal" data-bs-target="#modalNuovoTestDrive">
+        + New Booking
+    </button>
 </div>
 
 <div class="card shadow-sm border-0">
@@ -12,49 +14,82 @@
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+<div class="modal fade" id="modalNuovoTestDrive" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">Prenota Test Drive</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="/test_drive_calendar" method="POST">
+                <div class="modal-body">
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Cliente</label>
+                        <select name="id_cliente" class="form-select" required>
+                            <option value="" disabled selected>Seleziona cliente...</option>
+                            {% for c in clienti %}
+                                <option value="{{ c.ID_Persona }}">{{ c.Nome }} {{ c.Cognome }} ({{ c.CF }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
 
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Veicolo</label>
+                        <select name="numero_telaio" class="form-select" required>
+                            <option value="" disabled selected>Seleziona veicolo dal catalogo...</option>
+                            {% for v in veicoli %}
+                                <option value="{{ v.NumeroTelaio }}">{{ v.Modello }} (Targa: {{ v.Targa }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Data Prova</label>
+                            <input type="date" name="data_test" class="form-control" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Fascia Oraria (Slot)</label>
+                            <select name="id_slot" class="form-select" required>
+                                <option value="" disabled selected>Scegli ora...</option>
+                                {% for s in slot_orari %}
+                                    <option value="{{ s.ID_Slot }}">{{ s.Ora_Inizio }} - {{ s.Ora_Fine }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-primary">Salva Prenotazione</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         var calendarEl = document.getElementById('calendar');
         
-        // Calcoliamo la data di oggi per i dati fittizi
-        var today = new Date().toISOString().split('T')[0];
+        // RECUPERA GLI EVENTI DINAMICAMENTE DA PYTHON!
+        var eventiDalDatabase = {{ events | tojson | safe }};
 
         var calendar = new FullCalendar.Calendar(calendarEl, {
-            initialView: 'timeGridWeek', // Vista settimanale con orari
-            slotMinTime: '08:00:00',     // Orario di apertura
-            slotMaxTime: '19:00:00',     // Orario di chiusura
-            allDaySlot: false,           // Nasconde la riga degli eventi "tutto il giorno"
+            initialView: 'timeGridWeek', 
+            slotMinTime: '08:00:00',     
+            slotMaxTime: '19:00:00',     
+            allDaySlot: false,           
             headerToolbar: {
                 left: 'prev,next today',
                 center: 'title',
                 right: 'dayGridMonth,timeGridWeek,timeGridDay'
             },
-            // Dati fittizi: verranno sostituiti dai dati di Supabase tramite Python
-            events: [
-                {
-                    title: 'Test Drive: FH16 (Booked)',
-                    start: today + 'T10:00:00',
-                    end: today + 'T11:00:00',
-                    backgroundColor: '#dc3545', // Rosso per occupato
-                    borderColor: '#dc3545'
-                },
-                {
-                    title: 'Test Drive: Stralis (Booked)',
-                    start: today + 'T14:30:00',
-                    end: today + 'T15:30:00',
-                    backgroundColor: '#dc3545',
-                    borderColor: '#dc3545'
-                },
-                {
-                    title: 'Available Slot',
-                    start: today + 'T16:00:00',
-                    end: today + 'T17:00:00',
-                    backgroundColor: '#28a745', // Verde per libero
-                    borderColor: '#28a745'
-                }
-            ]
+            // Usiamo i veri dati del Database invece di quelli finti
+            events: eventiDalDatabase
         });
         
         calendar.render();
@@ -62,26 +97,9 @@
 </script>
 
 <style>
-    /* Piccole modifiche CSS per rendere il calendario più elegante */
-    .fc-theme-standard th {
-        background-color: #f8f9fa;
-        padding: 10px 0;
-        font-weight: bold;
-        color: #2c3e50;
-    }
-    .fc-event {
-        cursor: pointer;
-        border-radius: 4px;
-        border: none;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    .fc .fc-toolbar-title {
-        font-size: 1.5em;
-        color: #0d6efd;
-    }
-    .fc-button-primary {
-        background-color: #0d6efd !important;
-        border-color: #0d6efd !important;
-    }
+    .fc-theme-standard th { background-color: #f8f9fa; padding: 10px 0; font-weight: bold; color: #2c3e50; }
+    .fc-event { cursor: pointer; border-radius: 4px; border: none; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .fc .fc-toolbar-title { font-size: 1.5em; color: #0d6efd; }
+    .fc-button-primary { background-color: #0d6efd !important; border-color: #0d6efd !important; }
 </style>
 {% endblock %}
