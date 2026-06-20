@@ -240,21 +240,43 @@ def aggiorna_compito(id_compito):
 def prenota_intervento():
     if request.method == 'POST':
         try:
+            targa = request.form.get('targa').upper()
+            telaio = request.form.get('telaio').upper()
+            id_cliente = session.get('user_id')
+
+            # 🛠️ GESTIONE AUTO-REGISTRAZIONE VEICOLO:
+            # Controlliamo se questa macchina esiste già nel DB tramite il Numero di Telaio
+            res_veicolo = supabase.table('VEICOLO').select('NumeroTelaio').eq('NumeroTelaio', telaio).execute()
+            
+            if not res_veicolo.data:
+                # Se l'auto NON esiste nel database, la creiamo al volo in automatico 
+                # per evitare che la Foreign Key fallisca!
+                nuovo_veicolo_generico = {
+                    "NumeroTelaio": telaio,
+                    "Targa": targa,
+                    "Modello": "Auto Cliente",  # Nome di default generico
+                    "Kilometraggio": 0,          # Sarà aggiornato dal meccanico all'arrivo
+                    "ID_Marca": 1                # ID di default generico (Fiat o generica)
+                }
+                supabase.table('VEICOLO').insert(nuovo_veicolo_generico).execute()
+
+            # Ora che siamo SICURI al 100% che il veicolo esiste, inseriamo la prenotazione
             nuova_prenotazione = {
-                "ID_Persona": session.get('user_id'),
-                "Targa": request.form.get('targa').upper(),
-                "NumeroTelaio": request.form.get('telaio').upper(),
+                "ID_Persona": id_cliente,
+                "Targa": targa,
+                "NumeroTelaio": telaio,
                 "Data_Prenotazione": request.form.get('data'),
                 "Ora_Incontro": request.form.get('ora'),
                 "Nota_Cliente": request.form.get('note'),
                 "ID_Sede": int(request.form.get('sede'))
             }
+            
             supabase.table('PRENOTAZIONE').insert(nuova_prenotazione).execute()
             flash("Richiesta inviata con successo!", "success")
             return redirect('/area_cliente')
+            
         except Exception as e:
-            # 🛑 ORA STAMPIAMO L'ERRORE VERO DIRETTAMENTE SULLO SCHERMO!
-            print(f"🔴 ERRORE PRENOTAZIONE: {str(e)}")
+            print(f"🔴 ERRORE PRENOTAZIONE AUTOMATICA: {str(e)}")
             flash(f"Errore DB: {str(e)}", "danger")
             return redirect('/prenota')
             
@@ -511,11 +533,41 @@ def approva_usato():
 def mie_auto():
     try:
         id_cliente = session.get('user_id')
-        res = supabase.table('VEICOLO').select('*').eq('ID_Persona', id_cliente).execute()
-        auto_cliente = res.data
+        
+        # 1. Troviamo le auto che il cliente ha portato in officina (Prenotazioni)
+        res_pren = supabase.table('PRENOTAZIONE').select('NumeroTelaio').eq('ID_Persona', id_cliente).execute()
+        telai_prenotati = [r['NumeroTelaio'] for r in res_pren.data]
+        
+        # 2. Troviamo le auto che il cliente ha proposto per la vendita (Valutazione Usato)
+        res_val = supabase.table('VALUTAZIONE_USATO').select('NumeroTelaio').eq('ID_Persona', id_cliente).execute()
+        telai_valutati = [r['NumeroTelaio'] for r in res_val.data]
+        
+        # (Opzionale) Se avessimo contratti attivi, cercheremmo anche tramite ID_Contratto.
+        
+        # Uniamo tutti i numeri di telaio trovati ed eliminiamo i doppioni usando 'set'
+        tutti_i_telai = list(set(telai_prenotati + telai_valutati))
+        
+        auto_cliente = []
+        
+        # Se abbiamo trovato almeno un'auto collegata a questo cliente, peschiamo i dettagli dal DB!
+        if tutti_i_telai:
+            res_veicoli = supabase.table('VEICOLO').select('*').in_('NumeroTelaio', tutti_i_telai).execute()
+            auto_cliente = res_veicoli.data
+            
+            # MAGIA EXTRA: Sostituiamo ID_Marca con il nome reale della marca per la grafica
+            for auto in auto_cliente:
+                id_marca = auto.get('ID_Marca')
+                auto['Nome_Marca'] = "N/D" # Default
+                if id_marca:
+                    res_marca = supabase.table('MARCA').select('Nome').eq('ID_Marca', id_marca).execute()
+                    if res_marca.data:
+                        auto['Nome_Marca'] = res_marca.data[0]['Nome']
+        
         return render_template('prenotazioni/mie_auto.html', auto=auto_cliente)
+        
     except Exception as e:
-        print(f"ERRORE LETTURA AUTO: {e}")
+        print(f"🔴 ERRORE GARAGE: {str(e)}")
+        flash(f"Errore caricamento garage: {str(e)}", "danger")
         return redirect('/area_cliente')
 
 # --- AMMINISTRAZIONE: VEDI PRENOTAZIONI IN SOSPESO ---
@@ -523,54 +575,85 @@ def mie_auto():
 @ruolo_richiesto(4) 
 def gestione_prenotazioni():
     try:
-        res_pren = supabase.table('PRENOTAZIONE').select('*, PERSONA(Nome, Cognome)').is_('ID_Intervento', 'null').execute()
-        prenotazioni_pendenti = res_pren.data
+        # 1. Recuperiamo tutte le prenotazioni pendenti
+        res_pren = supabase.table('PRENOTAZIONE').select('*').is_('ID_Intervento', 'null').execute()
+        prenotazioni_raw = res_pren.data
 
-        res_mecc = supabase.table('PERSONA').select('*').in_('Ruolo', [2, 3]).execute()
+        prenotazioni_pendenti = []
+        
+        for pren in prenotazioni_raw:
+            info_pren = pren.copy()
+            info_pren['PERSONA'] = {"Nome": "N/D", "Cognome": "N/D"}
+            
+            id_cliente = pren.get('ID_Persona')
+            if id_cliente:
+                res_cliente = supabase.table('PERSONA').select('Nome', 'Cognome').eq('ID_Persona', id_cliente).execute()
+                if res_cliente.data:
+                    info_pren['PERSONA']['Nome'] = res_cliente.data[0].get('Nome')
+                    info_pren['PERSONA']['Cognome'] = res_cliente.data[0].get('Cognome')
+                    
+            prenotazioni_pendenti.append(info_pren)
+
+        # 3. Recuperiamo SOLO l'elenco dei meccanici (Ruolo = 2)
+        res_mecc = supabase.table('PERSONA').select('*').eq('Ruolo', 2).execute()
         meccanici = res_mecc.data
 
         return render_template('admin/gestione_prenotazioni.html', 
                                prenotazioni=prenotazioni_pendenti, meccanici=meccanici)
+                               
     except Exception as e:
-        print(f"ERRORE LETTURA PRENOTAZIONI: {e}")
-        return redirect('/dashboard_admin')
+        # 🛑 ECCO LA SPIA: Questa riga blocca il sito e ti stampa in faccia l'errore vero!
+        return f"<h1>🔴 CRASH GESTIONE PRENOTAZIONI</h1><p>L'errore esatto di Supabase è: <b>{str(e)}</b></p>"
 
 # --- AMMINISTRAZIONE: ASSEGNA IL LAVORO ---
 @main.route('/admin/assegna_lavoro', methods=['POST'])
 @ruolo_richiesto(4)
 def assegna_lavoro():
     try:
-        id_prenotazione = request.form.get('id_prenotazione')
+        id_prenotazione = int(request.form.get('id_prenotazione'))
         targa = request.form.get('targa')
         data_inizio = request.form.get('data')
         ora_inizio = request.form.get('ora')
-        id_meccanico = request.form.get('id_meccanico')
+        id_meccanico = int(request.form.get('id_meccanico'))
         nome_compito = request.form.get('nome_compito')
-        durata = request.form.get('durata')
+        durata = int(request.form.get('durata'))
 
-        # 1. Inseriamo l'Intervento (senza ID manuale) 
-        res_intervento = supabase.table('INTERVENTO').insert({
-            "Targa": targa, "ID_Officina": 1, 
-            "Data_Inizio": data_inizio, "Orario_Inizio": ora_inizio, 
-            "Tipologia_Intervento": "Manutenzione", "Costo": 0, "Note": "Web", 
-            "Durata": int(durata), "Km_Veicolo": 0 
-        }).execute()
+        # 1. Inseriamo l'Intervento 
+        nuovo_intervento = {
+            "Targa": targa, 
+            "ID_Officina": 1, 
+            "Data_Inizio": data_inizio, 
+            "Orario_Inizio": ora_inizio, 
+            "Tipologia_Intervento": "Manutenzione", 
+            "Costo": 0.0, 
+            "Note": "Assegnato da Web", 
+            "Durata": durata, 
+            "Km_Veicolo": 0 
+        }
+        res_intervento = supabase.table('INTERVENTO').insert(nuovo_intervento).execute()
 
-        # 2. Catturiamo l'ID generato automaticamente in tempo reale dall'auto-increment del DB
+        # 2. Catturiamo l'ID generato automaticamente
         id_intervento_db = res_intervento.data[0]['ID_Intervento']
 
-        # 3. Creiamo il record Compito agganciandoci la FK corretta appena ottenuta
-        supabase.table('COMPITO').insert({
+        # 3. Creiamo il record Compito agganciandoci la FK corretta
+        nuovo_compito = {
             "ID_Intervento": id_intervento_db, 
-            "ID_Persona": int(id_meccanico), "Nome": nome_compito[:20], 
-            "Durata": int(durata), "Data_Inizio": data_inizio, "Stato": "Da fare"
-        }).execute()
+            "ID_Persona": id_meccanico, 
+            "Nome": nome_compito[:20], 
+            "Durata": durata, 
+            "Data_Inizio": data_inizio
+            # Abbiamo rimosso la chiave "Stato" che non esiste nel tuo DDL!
+        }
+        supabase.table('COMPITO').insert(nuovo_compito).execute()
 
-        # 4. Aggiorniamo lo stato della prenotazione legando l'intervento generato
+        # 4. Aggiorniamo la prenotazione legando l'intervento generato
         supabase.table('PRENOTAZIONE').update({"ID_Intervento": id_intervento_db}).eq('ID_Prenotazione', id_prenotazione).execute()
         
-        flash("Lavoro assegnato con successo!", "success")
+        flash("Lavoro assegnato con successo al meccanico!", "success")
+        return redirect('/admin/prenotazioni')
+        
     except Exception as e:
-        print(f"ERRORE ASSEGNAZIONE: {e}")
-        flash("Errore durante l'assegnazione.", "danger")
-    return redirect('/admin/prenotazioni')
+        # Ripristinato il blocco try-except standard!
+        print(f"🔴 ERRORE ASSEGNAZIONE LAVORO: {e}")
+        flash(f"Errore DB durante l'assegnazione: {str(e)}", "danger")
+        return redirect('/admin/prenotazioni')
