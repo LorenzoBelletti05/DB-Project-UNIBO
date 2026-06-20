@@ -1,44 +1,84 @@
-{% extends "base.html" %}
+{% extends "layout.html" %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
-    <h2 class="h3 text-primary mb-0">Salesperson Dashboard</h2>
-    <a href="/transaction_wizard" class="btn btn-success fw-bold">+ New Transaction</a>
-</div>
+<div class="container mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
+        <div>
+            <h2 class="text-primary mb-0">Area Vendite</h2>
+            <p class="text-muted mb-0">Benvenuto, {{ session.get('nome', 'Venditore') }}! Ecco il riepilogo delle tue attività.</p>
+        </div>
+        <div>
+            <a href="/transaction_wizard" class="btn btn-success fw-bold shadow-sm">
+                📝 Nuova Transazione / Preventivo
+            </a>
+        </div>
+    </div>
 
-<div class="row g-4">
-    <div class="col-md-6">
-        <div class="card shadow-sm border-0 h-100">
-            <div class="card-header bg-warning text-dark fw-bold d-flex justify-content-between align-items-center py-3">
-                <span class="mb-0">📄 Open Quotes</span>
-                <span class="badge bg-dark">{{ quotes|length }}</span>
+    <div class="row mb-5">
+        <div class="col-md-4">
+            <div class="card text-white bg-primary shadow-sm h-100 border-0">
+                <div class="card-body">
+                    <h6 class="card-title text-uppercase fw-bold text-white-50">Veicoli in Stock</h6>
+                    <h2 class="mb-0">{{ stock_count }}</h2>
+                    <small>Pronti per la vendita</small>
+                </div>
             </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
+        </div>
+        <div class="col-md-4">
+            <div class="card text-white bg-warning shadow-sm h-100 border-0">
+                <div class="card-body">
+                    <h6 class="card-title text-uppercase fw-bold text-white-50">Trattative Aperte</h6>
+                    <h2 class="mb-0">{{ quotes|length }}</h2>
+                    <small>In attesa di firma</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-white bg-info shadow-sm h-100 border-0">
+                <div class="card-body">
+                    <h6 class="card-title text-uppercase fw-bold text-white-50">Test Drive Programmati</h6>
+                    <h2 class="mb-0">{{ test_drives|length }}</h2>
+                    <small>Per i prossimi 7 giorni</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8 mb-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center py-3">
+                    <span>💼 Le mie Trattative Recenti</span>
+                    <button class="btn btn-sm btn-outline-secondary">Vedi Tutte</button>
+                </div>
+                <div class="card-body p-0">
                     <table class="table table-hover align-middle mb-0">
                         <thead class="table-light">
                             <tr>
-                                <th>ID</th>
-                                <th>Client</th>
-                                <th>Vehicle</th>
-                                <th>Total (€)</th>
-                                <th>Action</th>
+                                <th>ID Prat.</th>
+                                <th>Cliente</th>
+                                <th>Veicolo</th>
+                                <th>Stato</th>
+                                <th class="text-end">Azioni</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for quote in quotes %}
                             <tr>
-                                <td class="fw-bold">#{{ quote.id }}</td>
-                                <td>{{ quote.client_name }}</td>
-                                <td>{{ quote.vehicle_model }}</td>
-                                <td class="text-success fw-bold">{{ quote.total_price }}</td>
-                                <td>
-                                    <button class="btn btn-sm btn-outline-primary">View</button>
+                                <td>#{{ quote.id }}</td>
+                                <td class="fw-bold">{{ quote.cliente }}</td>
+                                <td>{{ quote.veicolo }}</td>
+                                <td><span class="badge bg-warning text-dark">In attesa</span></td>
+                                <td class="text-end">
+                                    <button class="btn btn-sm btn-primary">Apri</button>
                                 </td>
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="5" class="text-center py-4 text-muted">No open quotes at the moment.</td>
+                                <td colspan="5" class="text-center text-muted py-5">
+                                    <h5 class="mb-2">Nessuna trattativa attiva</h5>
+                                    <p class="mb-0">Clicca su "Nuova Transazione" per iniziare a vendere.</p>
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -46,48 +86,31 @@
                 </div>
             </div>
         </div>
-    </div>
 
-    <div class="col-md-6">
-        <div class="card shadow-sm border-0 h-100">
-            <div class="card-header bg-info text-dark fw-bold d-flex justify-content-between align-items-center py-3">
-                <span class="mb-0">🚗 Assigned Test Drives</span>
-                <span class="badge bg-dark">{{ test_drives|length }}</span>
-            </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Date & Time</th>
-                                <th>Client</th>
-                                <th>Vehicle</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for td in test_drives %}
-                            <tr>
-                                <td class="fw-bold">{{ td.date }} - {{ td.time }}</td>
-                                <td>{{ td.client_name }}</td>
-                                <td>{{ td.vehicle_model }}</td>
-                                <td>
-                                    <span class="badge {% if td.status == 'Scheduled' %}bg-primary{% else %}bg-secondary{% endif %}">
-                                        {{ td.status }}
-                                    </span>
-                                </td>
-                            </tr>
-                            {% else %}
-                            <tr>
-                                <td colspan="4" class="text-center py-4 text-muted">No test drives scheduled.</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center py-3">
+                    <span>📅 Agenda Test Drive</span>
+                    <a href="/test_drive_calendar" class="btn btn-sm btn-outline-secondary">Calendario</a>
                 </div>
-            </div>
-            <div class="card-footer bg-white text-end border-top-0">
-                <a href="/test_drive_calendar" class="btn btn-sm btn-outline-info text-dark fw-bold">Open Full Calendar 📅</a>
+                <div class="card-body p-0">
+                    <ul class="list-group list-group-flush">
+                        {% for td in test_drives %}
+                        <li class="list-group-item py-3">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="fw-bold text-primary">{{ td.data }}</span>
+                                <span class="badge bg-light text-dark">{{ td.orario }}</span>
+                            </div>
+                            <div class="fw-bold">{{ td.cliente }}</div>
+                            <div class="text-muted small">Veicolo: {{ td.veicolo }}</div>
+                        </li>
+                        {% else %}
+                        <li class="list-group-item text-center text-muted py-5 border-bottom-0">
+                            <p class="mb-0">Nessun appuntamento in agenda.</p>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
             </div>
         </div>
     </div>
