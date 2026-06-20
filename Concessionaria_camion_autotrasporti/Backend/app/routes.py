@@ -885,104 +885,128 @@ def salespearson_dashboard():
 
 # --- TRANSACTION WIZARD VENDITORE (TEAM) ---
 @main.route('/transaction_wizard', methods=['GET', 'POST'])
-@ruolo_richiesto(3) # Solo per i Venditori (Ruolo 3)
+@ruolo_richiesto(3) # Solo per i Venditori
 def transaction_wizard():
     if request.method == 'POST':
         try:
-            azione = request.form.get('azione') 
+            # 1. Recupero Dati dal Form
             id_cliente = int(request.form.get('id_cliente'))
-            
-            # 1. FIX TELAIO: Ora il form HTML ci manda direttamente il NumeroTelaio (Univoco!)
-            numero_telaio = request.form.get('targa_veicolo')
-            
-            prezzo_finale = float(request.form.get('prezzo_finale'))
-            scadenza = int(request.form.get('scadenza'))
-            note = request.form.get('note') or "Nessuna nota aggiuntiva."
-            
+            numero_telaio = request.form.get('numero_telaio')
+            tipo_contratto = request.form.get('contract_type') # Vendita, Noleggio, Finanziamento, Leasing
+            data_inizio = request.form.get('start_date')
+            data_fine = request.form.get('end_date') or data_inizio # Fallback
+            metodo_pagamento = request.form.get('payment_method')
             id_venditore = session['user_id']
-            oggi = date.today().isoformat()
+            oggi = datetime.now().strftime("%Y-%m-%d")
             ora = datetime.now().strftime("%H:%M")
 
-            # 2. FIX GERARCHIA CLIENTE: Assicuriamoci che l'ID sia nella tabella CLIENTE
-            check_cli = supabase.table('CLIENTE').select('*').eq('ID_Persona', id_cliente).execute()
-            if len(check_cli.data) == 0:
-                # Se non c'è, lo inseriamo silenziosamente
-                supabase.table('CLIENTE').insert({'ID_Persona': id_cliente}).execute()
+            # 2. Recupero prezzo del veicolo per il contratto
+            res_veicolo = supabase.table('VEICOLO').select('Prezzo_Base').eq('NumeroTelaio', numero_telaio).execute()
+            prezzo = res_veicolo.data[0]['Prezzo_Base'] if res_veicolo.data else 0.0
 
-            # --- BIVIO: PREVENTIVO O VENDITA? ---
-            if azione == 'preventivo':
-                nuovo_preventivo = {
-                    "Stato_PreventivoChiuso": "N", 
-                    "Durata_Massima": scadenza,
-                    "Note": f"Prezzo proposto: €{prezzo_finale}. Note: {note}",
-                    "NumeroTelaio": numero_telaio,
-                    "ID_Persona": id_venditore,    
-                    "Pos_ID_Persona": id_cliente   
-                }
-                supabase.table('PREVENTIVO').insert(nuovo_preventivo).execute()
-                flash("Preventivo salvato! Il veicolo rimane in catalogo.", "info")
+            # 3. Creazione METODO_PAGAMENTO (Ci serve l'ID per il contratto)
+            max_pag = supabase.table('METODO_PAGAMENTO').select('ID_Pagamento').order('ID_Pagamento', desc=True).limit(1).execute()
+            id_pag = max_pag.data[0]['ID_Pagamento'] + 1 if max_pag.data else 1
+            
+            supabase.table('METODO_PAGAMENTO').insert({
+                "ID_Pagamento": id_pag,
+                "Circuito": "Circuito Standard",
+                "Intestatario": "Cliente",
+                "Tipologia": metodo_pagamento,
+                "Iban": "IT00000000000000000000000000000000"
+            }).execute()
 
-            elif azione == 'vendita':
-                # 1. Creiamo il CONTRATTO
-                nuovo_contratto = {
-                    "Tipo_Contratto": "Vendita",
-                    "Stato": "Concluso",
-                    "Data_Decorrenza": oggi,
-                    "Note_Legali": note,
-                    "Data_Scadenza": oggi, 
-                    "Importo_Totale": prezzo_finale,
-                    "Data_Stipula": oggi,
-                    "ID_Persona": id_cliente
-                }
-                res_contratto = supabase.table('CONTRATTO').insert(nuovo_contratto).execute()
-                id_contratto = res_contratto.data[0]['ID_Contratto']
-                
-                # --- FIX ID VENDITA: Calcoliamo il prossimo numero disponibile ---
-                max_vendita = supabase.table('VENDITA').select('ID_Vendita').order('ID_Vendita', desc=True).limit(1).execute()
-                prossimo_id = max_vendita.data[0]['ID_Vendita'] + 1 if max_vendita.data else 1
-                
-                # 2. Creiamo la VENDITA inserendo l'ID manualmente
-                nuova_vendita = {
-                    "ID_Vendita": prossimo_id,  # <-- Inserito a mano!
+            # 4. Creazione CONTRATTO
+            max_contr = supabase.table('CONTRATTO').select('ID_Contratto').order('ID_Contratto', desc=True).limit(1).execute()
+            id_contratto = max_contr.data[0]['ID_Contratto'] + 1 if max_contr.data else 1
+            
+            nuovo_contratto = {
+                "ID_Contratto": id_contratto,
+                "Tipo_Contratto": tipo_contratto[:14],
+                "Stato": "Attivo",
+                "Data_Decorrenza": data_inizio,
+                "Note_Legali": f"Generato da Wizard. Tipo: {tipo_contratto}",
+                "Data_Scadenza": data_fine,
+                "Importo_Totale": float(prezzo),
+                "Data_Stipula": oggi,
+                "ID_Persona": id_cliente,
+                "ID_Pagamento": id_pag
+            }
+            supabase.table('CONTRATTO').insert(nuovo_contratto).execute()
+
+            # 5. SPECIALIZZAZIONE CONTRATTO IN BASE ALLA SCELTA (Query 5.1.9)
+            if tipo_contratto == 'Noleggio':
+                supabase.table('NOLEGGIO').insert({
                     "ID_Contratto": id_contratto,
-                    "Stato": "C", 
+                    "Data_Inizio": data_inizio,
+                    "Data_Fine": data_fine,
+                    "Franchigia_assicurativa": 500.00,
+                    "Prezzo_km": 15,
+                    "Km_totali": 10000
+                }).execute()
+            
+            elif tipo_contratto == 'Vendita':
+                max_v = supabase.table('VENDITA').select('ID_Vendita').order('ID_Vendita', desc=True).limit(1).execute()
+                id_vendita = max_v.data[0]['ID_Vendita'] + 1 if max_v.data else 1
+                supabase.table('VENDITA').insert({
+                    "ID_Vendita": id_vendita,
+                    "ID_Contratto": id_contratto,
+                    "Stato": "C",
                     "Data_Vendita": oggi,
                     "Ora_Vendita": ora,
                     "ID_Persona": id_venditore
-                }
-                supabase.table('VENDITA').insert(nuova_vendita).execute()
+                }).execute()
+            
+            elif tipo_contratto == 'Finanziamento':
+                supabase.table('FINANZIAMENTO').insert({
+                    "ID_Contratto": id_contratto,
+                    "Assicurazione_Credito": 1000,
+                    "Spese_Apertura_Pratica": 300,
+                    "Anticipo": prezzo * 0.20, # Anticipo 20%
+                    "TAEG": 6.5,
+                    "TAN": 5.0
+                }).execute()
                 
-                # 3. Aggiorniamo il VEICOLO
-                supabase.table('VEICOLO').update({
-                    'ID_Contratto': id_contratto,
-                    'Stato_Disponibilita': 'A'
-                }).eq('NumeroTelaio', numero_telaio).execute()
-                
-                flash("Vendita confermata! L'auto è stata archiviata e i grafici aggiornati.", "success")
+            elif tipo_contratto == 'Leasing':
+                max_l = supabase.table('LEASING').select('ID_Leasing').order('ID_Leasing', desc=True).limit(1).execute()
+                id_leasing = max_l.data[0]['ID_Leasing'] + 1 if max_l.data else 1
+                supabase.table('LEASING').insert({
+                    "ID_Contratto": id_contratto,
+                    "ID_Leasing": id_leasing,
+                    "Importo_Mensile": 450,
+                    "Data_Inizio": data_inizio,
+                    "Data_Fine": data_fine,
+                    "Maxi_Canone": 5000,
+                    "P_IVA_Societa": "IT123456789",
+                    "Prezzo_Riscatto": prezzo * 0.40
+                }).execute()
 
-            # ---> MANCAVANO QUESTE TRE RIGHE IMPORTANTISSIME! <---
+            # 6. AGGIORNAMENTO VEICOLO (Riservato/Archiviato)
+            supabase.table('VEICOLO').update({
+                'ID_Contratto': id_contratto,
+                'Stato_Disponibilita': 'A'
+            }).eq('NumeroTelaio', numero_telaio).execute()
+
+            flash(f"Successo! {tipo_contratto} registrato e auto bloccata per il cliente.", "success")
             return redirect('/salesperson')
 
         except Exception as e:
-            print(f"ERRORE TRANSAZIONE: {e}")
-            flash(f"Errore durante l'operazione: {e}", "danger")
+            print(f"ERRORE WIZARD TRANSAZIONE: {e}")
+            flash(f"Errore durante l'operazione. Dettagli: {e}", "danger")
             return redirect('/transaction_wizard')
 
     # --- GET: Caricamento dati per riempire i menu a tendina ---
     try:
         clienti = supabase.table('PERSONA').select('*').eq('Ruolo', 1).execute().data
         veicoli = supabase.table('VEICOLO').select('*').neq('Stato_Disponibilita', 'A').execute().data
-        
+
         res_marche = supabase.table('MARCA').select('*').execute().data
         mappa_marche = {m['ID_Marca']: m['Nome'] for m in res_marche}
     except Exception as e:
-        print(f"ERRORE WIZARD: {e}")
+        print(f"ERRORE CARICAMENTO WIZARD: {e}")
         clienti, veicoli, mappa_marche = [], [], {}
 
-    return render_template('sales/transaction_wizard.html', 
-                           clienti=clienti, 
-                           veicoli=veicoli, 
-                           mappa_marche=mappa_marche)
+    return render_template('sales/transaction_wizard.html', clienti=clienti, veicoli=veicoli, mappa_marche=mappa_marche)
 
 # --- CALENDARIO TEST DRIVE (TEAM) ---
 @main.route('/test_drive_calendar', methods=['GET', 'POST'])
