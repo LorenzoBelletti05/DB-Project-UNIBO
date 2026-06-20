@@ -207,7 +207,7 @@ def dashboard_admin():
         labels_modelli, valori_modelli, labels_venditori, valori_venditori = [], [], [], []
         labels_meccanici, valori_meccanici, labels_rifiuti, valori_rifiuti = [], [], [], []
 
-    return render_template('admin/dashboard.html', 
+    return render_template('admin/admin_dashboard.html', 
                            veicoli_catalogo=veicoli_catalogo,
                            interventi_aperti=interventi_aperti,
                            valutazioni_sospeso=valutazioni_sospeso,
@@ -825,7 +825,7 @@ def get_optionals(numero_telaio):
 # --- DASHBOARD VENDITORE (TEAM) ---
 @main.route('/salesperson', methods=['GET'])
 @ruolo_richiesto(3)  # 3 = Venditore
-def salesperson_dashboard():
+def salespearson_dashboard():
     try:
         # 1. Contatore veicoli in catalogo (non archiviati)
         res_veicoli = supabase.table('VEICOLO').select('NumeroTelaio, Modello').neq('Stato_Disponibilita', 'A').execute()
@@ -878,9 +878,9 @@ def salesperson_dashboard():
         print(f"ERRORE DASHBOARD VENDITORE: {e}")
         veicoli_disponibili, quotes, test_drives = 0, [], []
 
-    return render_template('salesperson_dashboard.html',
-                           quotes=quotes,
-                           test_drives=test_drives,
+    return render_template('salespearson_dashboard.html', 
+                           quotes=quotes, 
+                           test_drives=test_drives, 
                            stock_count=veicoli_disponibili)
 
 # --- TRANSACTION WIZARD VENDITORE (TEAM) ---
