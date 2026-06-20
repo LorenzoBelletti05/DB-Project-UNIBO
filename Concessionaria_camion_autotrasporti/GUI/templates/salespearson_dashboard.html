@@ -26,8 +26,8 @@
         </div>
         <div class="col-md-4">
             <div class="card text-white bg-warning shadow-sm h-100 border-0">
-                <div class="card-body text-dark">
-                    <h6 class="card-title text-uppercase fw-bold text-dark-50">Trattative Aperte</h6>
+                <div class="card-body">
+                    <h6 class="card-title text-uppercase fw-bold text-white-50">Trattative Aperte</h6>
                     <h2 class="mb-0">{{ quotes|length }}</h2>
                     <small>In attesa di firma</small>
                 </div>
@@ -35,14 +35,57 @@
         </div>
         <div class="col-md-4">
             <div class="card text-white bg-info shadow-sm h-100 border-0">
-                <div class="card-body text-dark">
-                    <h6 class="card-title text-uppercase fw-bold text-dark-50">Test Drive Programmati</h6>
+                <div class="card-body">
+                    <h6 class="card-title text-uppercase fw-bold text-white-50">Test Drive Programmati</h6>
                     <h2 class="mb-0">{{ test_drives|length }}</h2>
-                    <small>Auto in prova prenotate</small>
+                    <small>Per i prossimi 7 giorni</small>
                 </div>
             </div>
         </div>
     </div>
+
+    <div class="row">
+        <div class="col-lg-8 mb-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center py-3">
+                    <span>💼 Le mie Trattative Recenti</span>
+                    <button class="btn btn-sm btn-outline-secondary">Vedi Tutte</button>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>ID Prat.</th>
+                                <th>Cliente</th>
+                                <th>Veicolo</th>
+                                <th>Stato</th>
+                                <th class="text-end">Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for quote in quotes %}
+                            <tr>
+                                <td>#{{ quote.id }}</td>
+                                <td class="fw-bold">{{ quote.cliente }}</td>
+                                <td>{{ quote.veicolo }}</td>
+                                <td><span class="badge bg-warning text-dark">In attesa</span></td>
+                                <td class="text-end">
+                                    <button class="btn btn-sm btn-primary">Apri</button>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-5">
+                                    <h5 class="mb-2">Nessuna trattativa attiva</h5>
+                                    <p class="mb-0">Clicca su "Nuova Transazione" per iniziare a vendere.</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
 
     <div class="row g-4">
         <div class="col-lg-6">

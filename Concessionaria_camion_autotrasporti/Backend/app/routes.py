@@ -828,39 +828,59 @@ def get_optionals(numero_telaio):
 def salesperson_dashboard():
     try:
         # 1. Contatore veicoli in catalogo (non archiviati)
-        res_veicoli = supabase.table('VEICOLO').select('NumeroTelaio').neq('Stato_Disponibilita', 'A').execute()
+        res_veicoli = supabase.table('VEICOLO').select('NumeroTelaio, Modello').neq('Stato_Disponibilita', 'A').execute()
         veicoli_disponibili = len(res_veicoli.data)
         
-        # 2. Preview dei Test Drive assegnati a QUESTO venditore
-        id_venditore = session['user_id']
-        test_drives_raw = supabase.table('TEST_DRIVE').select('*').eq('Sup_ID_Persona', id_venditore).execute().data
-        
-        # Ci portiamo dietro Clienti e Slot per tradurre gli ID in testo leggibile
+        # Prepariamo la mappa dei veicoli per tradurre il telaio nel nome del Modello
+        tutti_veicoli = supabase.table('VEICOLO').select('NumeroTelaio, Modello').execute().data
+        mappa_veicoli = {v['NumeroTelaio']: v['Modello'] for v in tutti_veicoli}
+
+        # Prepariamo la mappa dei clienti per tradurre l'ID nel Nome e Cognome
         clienti = supabase.table('PERSONA').select('ID_Persona, Nome, Cognome').eq('Ruolo', 1).execute().data
         mappa_clienti = {c['ID_Persona']: f"{c['Nome']} {c['Cognome']}" for c in clienti}
+
+        id_venditore = session['user_id']
+
+        # 2. TRATTATIVE (Preventivi Aperti) assegnati a QUESTO venditore
+        preventivi_raw = supabase.table('PREVENTIVO').select('*').eq('ID_Persona', id_venditore).eq('Stato_PreventivoChiuso', 'N').execute().data
+        
+        quotes = []
+        for p in preventivi_raw:
+            quotes.append({
+                "id": p['ID_Preventivo'],
+                "cliente": mappa_clienti.get(p.get('Pos_ID_Persona'), "Cliente Ignoto"),
+                "veicolo": mappa_veicoli.get(p.get('NumeroTelaio'), "Veicolo Ignoto")
+            })
+
+        # 3. TEST DRIVE assegnati a QUESTO venditore in supervisione
+        test_drives_raw = supabase.table('TEST_DRIVE').select('*').eq('Sup_ID_Persona', id_venditore).execute().data
         
         slot_orari = supabase.table('SLOT_ORARIO').select('*').execute().data
         mappa_slot = {s['ID_Slot']: f"{s['Ora_Inizio']} - {s['Ora_Fine']}" for s in slot_orari}
         
-        # Costruiamo la lista per l'HTML
+        # Tabella ponte per trovare a quale auto si riferisce il test drive
+        utilizzo_td = supabase.table('Utilizzo_TV').select('*').execute().data
+        mappa_utilizzo = {u['ID_TestDrive']: u['NumeroTelaio'] for u in utilizzo_td}
+
         test_drives = []
         for td in test_drives_raw:
+            telaio_td = mappa_utilizzo.get(td['ID_TestDrive'], "")
+            modello_td = mappa_veicoli.get(telaio_td, "Veicolo Ignoto")
+
             test_drives.append({
-                "Data": td['Data'],
-                "Orario": mappa_slot.get(td['ID_Slot'], "Orario ignoto"),
-                "Cliente": mappa_clienti.get(td['ID_Persona'], "Cliente ignoto")
+                "data": td['Data'],
+                "orario": mappa_slot.get(td['ID_Slot'], "Orario ignoto"),
+                "cliente": mappa_clienti.get(td['ID_Persona'], "Cliente ignoto"),
+                "veicolo": modello_td
             })
-            
-        # Preview preventivi (Se vuoi la completiamo dopo!)
-        quotes = []
 
     except Exception as e:
         print(f"ERRORE DASHBOARD VENDITORE: {e}")
         veicoli_disponibili, quotes, test_drives = 0, [], []
 
-    return render_template('salesperson_dashboard.html', 
-                           quotes=quotes, 
-                           test_drives=test_drives, 
+    return render_template('salesperson_dashboard.html',
+                           quotes=quotes,
+                           test_drives=test_drives,
                            stock_count=veicoli_disponibili)
 
 # --- TRANSACTION WIZARD VENDITORE (TEAM) ---
