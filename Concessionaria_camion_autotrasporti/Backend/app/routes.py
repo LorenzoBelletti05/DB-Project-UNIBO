@@ -324,27 +324,38 @@ def gestione_catalogo():
                 }
                 
                 supabase.table('VEICOLO').insert(nuovo_veicolo).execute()
+
+                # Replica della query 5.1.2.1 / 5.1.2.2: collegamento optional
+                optional_selezionati = request.form.getlist('optional_ids')
+                for id_opt in optional_selezionati:
+                    supabase.table('Comprende_VO').insert({
+                        "NumeroTelaio": numero_telaio,
+                        "ID_Optional": int(id_opt)
+                    }).execute()
+
                 flash(f"Veicolo {nuovo_veicolo['Modello']} inserito correttamente nel catalogo!", "success")
+            
             except Exception as e:
                 print(f"ERRORE VEICOLO: {e}")
                 flash("Errore durante il salvataggio del veicolo. Controlla i dati inseriti.", "danger")
+            
             return redirect('/admin/catalog')
 
     try:
         lista_marche = supabase.table('MARCA').select('*').execute().data
         tutti_veicoli = supabase.table('VEICOLO').select('*').execute().data
-        
-        # Dividiamo i veicoli tramite Python
         lista_veicoli = [v for v in tutti_veicoli if v['Stato_Disponibilita'] != 'A']
         veicoli_archiviati = [v for v in tutti_veicoli if v['Stato_Disponibilita'] == 'A']
+        lista_optional_db = supabase.table('OPTIONAL').select('*').execute().data
         
     except:
-        lista_marche, lista_veicoli, veicoli_archiviati = [], [], []
+        lista_marche, lista_veicoli, veicoli_archiviati, lista_optional_db = [], [], [], []
 
-    return render_template('admin/catalog.html', 
-                           marche=lista_marche, 
+    return render_template('admin/catalog.html',
+                           marche=lista_marche,
                            veicoli=lista_veicoli,
-                           veicoli_archiviati=veicoli_archiviati)
+                           veicoli_archiviati=veicoli_archiviati,
+                           lista_optional_db=lista_optional_db)
 
 # --- ROTTA DASHBOARD MECCANICO (KANBAN BOARD) ---
 @main.route('/dashboard_meccanico')
