@@ -269,11 +269,11 @@ def add_crew():
 
 # --- AMMINISTRAZIONE: CATALOGO (MERGED) ---
 @main.route('/admin/catalog', methods=['GET', 'POST'])
-@ruolo_richiesto(4)
+@ruolo_richiesto(4) 
 def gestione_catalogo():
     if request.method == 'POST':
-        # Sotto-Azione A: Aggiungi Marca 
-        if 'aggiungi_marca' in request.form:
+        # Sotto-Azione A: Aggiungi Marca (Tua Funzione)
+        if 'aggiungi_marca' in request.form: 
             nome_marca = request.form.get('nome_marca')
             try:
                 supabase.table('MARCA').insert({"Nome": nome_marca, "Attiva": "Y"}).execute()
@@ -283,20 +283,20 @@ def gestione_catalogo():
                 flash("Errore durante l'inserimento della marca.", "danger")
             return redirect('/admin/catalog')
 
-        # Sotto-Azione B: Aggiungi Veicolo
+        # Sotto-Azione B: Aggiungi Veicolo (Funzione del Team)
         if 'aggiungi_veicolo' in request.form:
             try:
                 numero_telaio = request.form.get('numero_telaio', '').upper()[:17]
-                stato_veicolo = request.form.get('stato', 'N')[:1].upper()
+                stato_veicolo = request.form.get('stato', 'N')[:1].upper() 
 
                 km_form = request.form.get('chilometraggio')
                 km = int(km_form) if km_form and km_form.strip() else 0
                 if stato_veicolo == 'N':
-                    km = 0
+                    km = 0  
 
                 num_assi_form = request.form.get('numero_assi')
                 num_assi = int(num_assi_form) if num_assi_form and num_assi_form.strip() else 2
-
+                
                 conf_assi_form = request.form.get('configurazione_assi')
                 conf_assi = conf_assi_form[:3] if conf_assi_form and conf_assi_form.strip() else '4x2'
 
@@ -322,17 +322,9 @@ def gestione_catalogo():
                     "ID_Marca": int(request.form.get('id_marca') or 1),
                     "Kilometraggio": km
                 }
-
-                # 1. Inserimento in VEICOLO
-                supabase.table('VEICOLO').insert(nuovo_veicolo).execute()
                 
-                # 2. Inserimento in Comprende_VO (Optionals)
-                lista_optional_selezionati = request.form.getlist('optional_ids')
-                if lista_optional_selezionati:
-                    dati_optional = [{"NumeroTelaio": numero_telaio, "ID_Optional": int(opt_id)} for opt_id in lista_optional_selezionati]
-                    supabase.table('Comprende_VO').insert(dati_optional).execute()
-
-                flash(f"Veicolo {nuovo_veicolo['Modello']} e relativi optional inseriti correttamente!", "success")
+                supabase.table('VEICOLO').insert(nuovo_veicolo).execute()
+                flash(f"Veicolo {nuovo_veicolo['Modello']} inserito correttamente nel catalogo!", "success")
             except Exception as e:
                 print(f"ERRORE VEICOLO: {e}")
                 flash("Errore durante il salvataggio del veicolo. Controlla i dati inseriti.", "danger")
@@ -341,19 +333,18 @@ def gestione_catalogo():
     try:
         lista_marche = supabase.table('MARCA').select('*').execute().data
         tutti_veicoli = supabase.table('VEICOLO').select('*').execute().data
-        lista_optional_db = supabase.table('OPTIONAL').select('*').execute().data
-
+        
+        # Dividiamo i veicoli tramite Python
         lista_veicoli = [v for v in tutti_veicoli if v['Stato_Disponibilita'] != 'A']
         veicoli_archiviati = [v for v in tutti_veicoli if v['Stato_Disponibilita'] == 'A']
-
+        
     except:
-        lista_marche, lista_veicoli, veicoli_archiviati, lista_optional_db = [], [], [], []
+        lista_marche, lista_veicoli, veicoli_archiviati = [], [], []
 
-    return render_template('admin/catalog.html',
-                           marche=lista_marche,
+    return render_template('admin/catalog.html', 
+                           marche=lista_marche, 
                            veicoli=lista_veicoli,
-                           veicoli_archiviati=veicoli_archiviati,
-                           lista_optional_db=lista_optional_db)
+                           veicoli_archiviati=veicoli_archiviati)
 
 # --- ROTTA DASHBOARD MECCANICO (KANBAN BOARD) ---
 @main.route('/dashboard_meccanico')
