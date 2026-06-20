@@ -1,170 +1,369 @@
-{% extends "layout.html" %}
+from functools import wraps
+from flask import Blueprint, render_template, request, redirect, session, flash, jsonify
+from .db import supabase 
 
-{% block content %}
-<div class="row mt-4 mb-5">
-    
-    <aside class="col-md-3 mb-4">
-        <div class="card shadow-sm border-0">
-            <div class="card-header bg-primary text-white fw-bold">
-                🔍 Filter Vehicles
-            </div>
-            <div class="card-body bg-light">
-                <form id="filter-form" method="GET" action="/catalog">
-                    
-                    <div class="mb-3">
-                        <label class="form-label fw-bold text-dark">Condition</label>
-                        <select name="condition" class="form-select border-primary">
-                            <option value="">All</option>
-                            <option value="New">New</option>
-                            <option value="Used">Used</option>
-                        </select>
-                    </div>
+main = Blueprint('main', __name__)
 
-                    <div class="mb-3">
-                        <label class="form-label fw-bold text-dark">Brand</label>
-                        <select name="brand" class="form-select">
-                            <option value="">All Brands</option>
-                            {% for brand in brands %}
-                            <option value="{{ brand.name }}">{{ brand.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
+def ruolo_richiesto(ruolo_necessario):
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if 'ruolo' not in session or session['ruolo'] != ruolo_necessario:
+                flash("Non hai i permessi necessari per accedere a quest'area.", "danger")
+                return redirect('/login')
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
 
-                    <div class="mb-3">
-                        <label class="form-label fw-bold text-dark">Model</label>
-                        <input type="text" name="model" class="form-control" placeholder="e.g. FH16, Stralis...">
-                    </div>
+@main.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        password = request.form.get('password')
 
-                    <div class="mb-4">
-                        <label class="form-label fw-bold text-dark">Max Price (€)</label>
-                        <input type="number" name="max_price" class="form-control" placeholder="e.g. 80000">
-                    </div>
+        try:
+            response = supabase.table('PERSONA').select('*').eq('Mail', email).execute()
+            utenti = response.data
 
-                    <button type="submit" class="btn btn-primary w-100 fw-bold">Apply Filters</button>
-                    <a href="/catalog" class="btn btn-outline-secondary w-100 mt-2">Reset</a>
-                </form>
-            </div>
-        </div>
-    </aside>
+            if not utenti:
+                flash("Account inesistente. Registrati.", "warning")
+                return redirect('/login')
+                
+            utente = utenti[0]
+            if utente['Password'] == password:
+                session['user_id'] = utente['ID_Persona']
+                session['ruolo'] = utente['Ruolo'] 
+                session['nome'] = utente['Nome']
 
-    <main class="col-md-9">
-        <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
-            <h3 class="h4 text-primary mb-0">Public Catalog</h3>
-            <span class="badge bg-secondary fs-6">{{ vehicles|length }} vehicles found</span>
-        </div>
+                if utente['Ruolo'] == 4:
+                    return redirect('/dashboard_admin')
+                elif utente['Ruolo'] == 1:
+                    return redirect('/area_cliente')
+                else:
+                    return redirect('/')
+            else:
+                flash("Password errata.", "danger")
+                return redirect('/login')
 
-        <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
-            {% for vehicle in vehicles %}
-            <div class="col">
-                <div class="card h-100 shadow-sm border-0 transition-hover">
-                    <img src="https://via.placeholder.com/400x250/e9ecef/495057?text={{ mappa_marche.get(vehicle.ID_Marca, 'Marca') }}+{{ vehicle.Modello }}" class="card-img-top" alt="Vehicle Image">
-                    
-                    <div class="card-body">
-                        <h5 class="card-title fw-bold text-uppercase">{{ mappa_marche.get(vehicle.ID_Marca, '') }} {{ vehicle.Modello }}</h5>
-                        <p class="card-text text-muted mb-2 small">
-                            📅 Year: {{ vehicle.Anno_Produzione }} <br>
-                            {% if vehicle.Stato_Disponibilita == 'U' %} 🛣️ Mileage: {{ vehicle.Kilometraggio }} km {% endif %}
-                        </p>
-                        <h4 class="text-success mb-3">€ {{ vehicle.Prezzo_Base }}</h4>
-                        
-                        <span class="badge {% if vehicle.Stato_Disponibilita == 'N' %}bg-success{% else %}bg-info text-dark{% endif %} mb-1">
-                            {% if vehicle.Stato_Disponibilita == 'N' %}New{% else %}Used{% endif %}
-                        </span>
-                        <span class="badge bg-dark">{{ vehicle.Tipologia_Motrice }}</span>
-                    </div>
-                    
-                    <div class="card-footer bg-white border-top-0 d-flex justify-content-between pb-3">
-                        <button class="btn btn-sm btn-outline-primary fw-bold" data-id="{{ vehicle.NumeroTelaio }}" data-name="{{ mappa_marche.get(vehicle.ID_Marca, '') }} {{ vehicle.Modello }}" onclick="showOptionals(this.getAttribute('data-id'), this.getAttribute('data-name'))">⚙️ Optionals</button>
-                        <button class="btn btn-sm btn-primary">Details</button>
-                    </div>
-                </div>
-            </div>
-            {% else %}
-            <div class="col-12 text-center py-5">
-                <h4 class="text-muted mb-3">No vehicles found 🚛</h4>
-                <p>Try modifying your filters to find what you are looking for.</p>
-            </div>
-            {% endfor %}
-        </div>
-    </main>
-</div>
+        except Exception as e:
+            print(f"ERRORE LOGIN: {str(e)}")
+            flash("Errore di connessione.", "danger")
+            return redirect('/login')
 
-<div class="modal fade" id="optionalsModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header bg-dark text-white">
-                <h5 class="modal-title" id="optionalsModalTitle">Vehicle Optionals</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body bg-light" id="optionalsModalBody">
-                <div class="text-center py-3">
-                    <div class="spinner-border text-primary" role="status"></div>
-                    <p class="mt-2 text-muted">Loading optionals...</p>
-                </div>
-            </div>
-            <div class="modal-footer d-flex justify-content-between">
-                <h5 class="mb-0 text-success" id="optionalsTotalBox">Extra: € 0</h5>
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            </div>
-        </div>
-    </div>
-</div>
+    return render_template('login/login.html')
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
-<script>
-// MODIFICA QUI: Inserita la vera chiamata fetch() al database
-function showOptionals(vehicleId, vehicleName) {
-    const modal = new bootstrap.Modal(document.getElementById('optionalsModal'));
-    document.getElementById('optionalsModalTitle').innerText = `Optionals for: ${vehicleName}`;
-    
-    const body = document.getElementById('optionalsModalBody');
-    body.innerHTML = `<div class="text-center py-3"><div class="spinner-border text-primary"></div><p class="mt-2 text-muted">Loading...</p></div>`;
-    document.getElementById('optionalsTotalBox').innerText = `Extra: € 0`;
-    
-    modal.show();
-
-    fetch(`/api/optional/${vehicleId}`)
-        .then(response => response.json())
-        .then(optionals => {
-            if (optionals.length === 0) {
-                body.innerHTML = '<p class="text-center text-muted my-4">Nessun optional extra disponibile per questo veicolo.</p>';
-                return;
-            }
-
-            let htmlContent = '<ul class="list-group mb-3">';
-            optionals.forEach(opt => {
-                htmlContent += `
-                <li class="list-group-item d-flex justify-content-between align-items-center">
-                    <div>
-                        <input class="form-check-input me-2 opt-checkbox" type="checkbox" value="${opt.prezzo}" onchange="calculateTotal()">
-                        ${opt.nome}
-                    </div>
-                    <span class="badge bg-success rounded-pill">+ €${opt.prezzo}</span>
-                </li>`;
-            });
-            htmlContent += '</ul>';
+@main.route('/registrazione', methods=['POST'])
+def registrazione():
+    try:
+        mail = request.form.get('mail')
+        controllo = supabase.table('PERSONA').select('*').eq('Mail', mail).execute()
+        if len(controllo.data) > 0:
+            flash("Email già registrata.", "info")
+            return redirect('/login')
             
-            body.innerHTML = htmlContent;
-            calculateTotal();
-        })
-        .catch(error => {
-            console.error("Errore nel recupero degli optional:", error);
-            body.innerHTML = '<p class="text-center text-danger my-4">Errore di connessione al database per gli optional.</p>';
-        });
-}
+        residenza = f"{request.form.get('via')} {request.form.get('civico')}, {request.form.get('cap')} {request.form.get('citta')} ({request.form.get('provincia')})"
+        
+        nuovo_utente = {
+            "Nome": request.form.get('nome'),
+            "Cognome": request.form.get('cognome'),
+            "CF": request.form.get('cf'),
+            "Numero_Passaporto": request.form.get('passaporto'),
+            "Residenza": residenza[:50],
+            "Telefono": request.form.get('telefono'),
+            "Mail": mail,
+            "Password": request.form.get('password'),
+            "Ruolo": 1  
+        }
+        
+        supabase.table('PERSONA').insert(nuovo_utente).execute()
+        flash("Registrazione completata! Ora puoi accedere.", "success")
+        return redirect('/login')
+        
+    except Exception as e:
+        print(f"ERRORE REGISTRAZIONE: {str(e)}")
+        flash("Errore nel salvataggio dati.", "danger")
+        return redirect('/login')
 
-function calculateTotal() {
-    let total = 0;
-    document.querySelectorAll('.opt-checkbox:checked').forEach(checkbox => {
-        total += parseInt(checkbox.value);
-    });
-    document.getElementById('optionalsTotalBox').innerText = `Extra: € ${total}`;
-}
-</script>
+@main.route('/')
+def home():
+    if 'user_id' not in session: 
+        return redirect('/login')
+        
+    if session['ruolo'] == 4: 
+        return redirect('/dashboard_admin')     
+    elif session['ruolo'] == 3:                 
+        return redirect('/salesperson')         
+    elif session['ruolo'] == 1: 
+        return redirect('/area_cliente')        
+        
+    return f"Benvenuto {session.get('nome', '')}! Il tuo ruolo ({session['ruolo']}) non ha ancora una home dedicata."
 
-<style>
-.transition-hover { transition: transform 0.2s ease, box-shadow 0.2s ease; }
-.transition-hover:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important; }
-</style>
-{% endblock %}
+@main.route('/dashboard_admin')
+@ruolo_richiesto(4) 
+def dashboard_admin():
+    try:
+        res_modelli = supabase.table('vista_modelli_venduti').select('*').execute()
+        dati_modelli = res_modelli.data
+
+        res_venditori = supabase.table('vista_performance_venditori').select('*').execute()
+        dati_venditori = res_venditori.data
+
+        labels_modelli = [riga['Modello'] for riga in dati_modelli]
+        valori_modelli = [riga['totale_vendite'] for riga in dati_modelli]
+
+        labels_venditori = [riga['venditore'] for riga in dati_venditori]
+        valori_venditori = [riga['totale_vendite'] for riga in dati_venditori]
+
+    except Exception as e:
+        print(f"ERRORE GRAFICI: {str(e)}")
+        labels_modelli = []
+        valori_modelli = []
+        labels_venditori = []
+        valori_venditori = []
+
+    return render_template('admin/dashboard.html', 
+                           labels_modelli=labels_modelli, 
+                           valori_modelli=valori_modelli,
+                           labels_venditori=labels_venditori,
+                           valori_venditori=valori_venditori)
+
+@main.route('/area_cliente')
+@ruolo_richiesto(1) 
+def area_cliente():
+    return render_template('dashboard/dashboard.html')
+
+@main.route('/admin/utenti')
+@ruolo_richiesto(4)
+def gestione_utenti():
+    response = supabase.table('PERSONA').select('*').execute()
+    return render_template('admin/admin_user.html', utenti=response.data)
+
+@main.route('/logout')
+def logout():
+    session.clear()
+    return redirect('/login')
+
+@main.route('/admin/add_crew', methods=['GET', 'POST'])
+@ruolo_richiesto(4) 
+def add_crew():
+    if request.method == 'POST':
+        ruolo_scelto = int(request.form.get('ruolo')) 
+        mail = request.form.get('mail')
+        
+        try:
+            controllo = supabase.table('PERSONA').select('*').eq('Mail', mail).execute()
+            if len(controllo.data) > 0:
+                flash("Errore: Email già presente nel sistema.", "danger")
+                return redirect('/admin/add_crew')
+            
+            nuovo_dipendente = {
+                "Nome": request.form.get('nome'),
+                "Cognome": request.form.get('cognome'),
+                "CF": request.form.get('cf'),
+                "Residenza": request.form.get('residenza')[:50],
+                "Telefono": request.form.get('telefono'),
+                "Mail": mail,
+                "Password": request.form.get('password'),
+                "Ruolo": ruolo_scelto 
+            }
+            
+            supabase.table('PERSONA').insert(nuovo_dipendente).execute()
+            
+            flash(f"Dipendente {nuovo_dipendente['Nome']} aggiunto con successo!", "success")
+            return redirect('/dashboard_admin')
+            
+        except Exception as e:
+            print(f"ERRORE ASSUNZIONE: {str(e)}")
+            flash("Errore durante l'inserimento nel database.", "danger")
+            return redirect('/admin/add_crew')
+
+    return render_template('admin/add_crew.html')
+
+@main.route('/admin/catalog', methods=['GET', 'POST'])
+@ruolo_richiesto(4) 
+def gestione_catalogo():
+    if request.method == 'POST':
+        
+        if 'aggiungi_marca' in request.form: 
+            nome_marca = request.form.get('nome_marca')
+            try:
+                supabase.table('MARCA').insert({"Nome": nome_marca, "Attiva": "Y"}).execute()
+                flash(f"Marca {nome_marca} aggiunta!", "success")
+            except Exception as e:
+                print(f"ERRORE MARCA: {e}")
+                flash("Errore durante l'inserimento della marca.", "danger")
+            return redirect('/admin/catalog')
+
+        if 'aggiungi_veicolo' in request.form:
+            try:
+                numero_telaio = request.form.get('numero_telaio', '').upper()[:17]
+                stato_veicolo = request.form.get('stato', 'N')[:1].upper() 
+
+                km_form = request.form.get('chilometraggio')
+                km = int(km_form) if km_form and km_form.strip() else 0
+                if stato_veicolo == 'N':
+                    km = 0  
+
+                num_assi_form = request.form.get('numero_assi')
+                num_assi = int(num_assi_form) if num_assi_form and num_assi_form.strip() else 2
+                
+                conf_assi_form = request.form.get('configurazione_assi')
+                conf_assi = conf_assi_form[:3] if conf_assi_form and conf_assi_form.strip() else '4x2'
+
+                descrizione = request.form.get('descrizione')
+                desc_pulita = descrizione[:100] if descrizione else "N/A"
+
+                nuovo_veicolo = {
+                    "NumeroTelaio": numero_telaio,
+                    "Targa": request.form.get('targa', '')[:20].upper(),
+                    "Modello": request.form.get('modello', 'Sconosciuto')[:15],
+                    "Anno_Produzione": int(request.form.get('anno') or 2024),
+                    "Data_Arrivo_Concessionaria": request.form.get('data_arrivo'),
+                    "Classe_Inquinamento": request.form.get('classe_inquinamento', 'Euro 6')[:6],
+                    "Configurazione_Assi": conf_assi,
+                    "Numero_Assi": num_assi,
+                    "Tipologia_Motrice": request.form.get('tipologia_motrice', 'Motrice')[:15],
+                    "Peso": float(request.form.get('peso') or 0.0),
+                    "Descrizione": desc_pulita,
+                    "Prezzo_Base": float(request.form.get('prezzo') or 0.0),
+                    "Data_Immatricolazione": request.form.get('data_immatricolazione') or None,
+                    "Potenza_CV": int(request.form.get('potenza_cv') or 0),
+                    "Stato_Disponibilita": stato_veicolo,
+                    "ID_Marca": int(request.form.get('id_marca') or 1),
+                    "Kilometraggio": km
+                }
+                
+                supabase.table('VEICOLO').insert(nuovo_veicolo).execute()
+
+                flash(f"Veicolo {nuovo_veicolo['Modello']} inserito correttamente nel catalogo!", "success")
+            
+            except Exception as e:
+                print(f"ERRORE VEICOLO: {e}")
+                flash("Errore durante il salvataggio del veicolo. Controlla i dati inseriti.", "danger")
+            return redirect('/admin/catalog')
+
+    try:
+        lista_marche = supabase.table('MARCA').select('*').execute().data
+        lista_veicoli = supabase.table('VEICOLO').select('*').execute().data
+    except:
+        lista_marche, lista_veicoli = [], []
+
+    return render_template('admin/catalog.html', marche=lista_marche, veicoli=lista_veicoli)
+
+@main.route('/catalog', methods=['GET'])
+def public_catalog():
+    try:
+        condizione = request.args.get('condition')
+        marca_nome = request.args.get('brand')
+        modello = request.args.get('model')
+        prezzo_max = request.args.get('max_price')
+
+        query = supabase.table('VEICOLO').select('*')
+
+        if condizione == 'New':
+            query = query.eq('Stato_Disponibilita', 'N')
+        elif condizione == 'Used':
+            query = query.eq('Stato_Disponibilita', 'U')
+
+        if modello:
+            query = query.ilike('Modello', f'%{modello}%')
+
+        if prezzo_max:
+            query = query.lte('Prezzo_Base', float(prezzo_max))
+
+        res_veicoli = query.execute()
+        vehicles = res_veicoli.data
+
+        res_marche = supabase.table('MARCA').select('*').eq('Attiva', 'Y').execute()
+        brands = res_marche.data
+        mappa_marche = {marca['ID_Marca']: marca['Nome'] for marca in brands}
+
+        if marca_nome:
+            id_marca_cercata = next((id_m for id_m, nome in mappa_marche.items() if nome == marca_nome), None)
+            if id_marca_cercata:
+                vehicles = [v for v in vehicles if v['ID_Marca'] == id_marca_cercata]
+            else:
+                vehicles = [] 
+
+    except Exception as e:
+        print(f"ERRORE CATALOGO PUBBLICO: {e}")
+        vehicles = []
+        brands = []
+        mappa_marche = {}
+
+    return render_template('public_catalog.html', vehicles=vehicles, brands=brands, mappa_marche=mappa_marche)
+
+@main.route('/api/optional/<numero_telaio>', methods=['GET'])
+def get_optionals(numero_telaio):
+    try:
+        res_comp = supabase.table('Comprende_VO').select('ID_Optional').eq('NumeroTelaio', numero_telaio).execute()
+        id_optionals = [riga['ID_Optional'] for riga in res_comp.data]
+
+        if not id_optionals:
+            return jsonify([])
+        
+        res_opt = supabase.table('OPTIONAL').select('*').in_('ID_Optional', id_optionals).execute()
+        
+        lista_optional = []
+        for opt in res_opt.data:
+            lista_optional.append({
+                "id": opt.get("ID_Optional", opt.get("id", 0)),
+                "nome": opt.get("Nome", opt.get("nome", "Optional")),
+                "prezzo": opt.get("Prezzo", opt.get("prezzo", 0))
+            })
+            
+        return jsonify(lista_optional)
+    except Exception as e:
+        print(f"ERRORE API OPTIONAL: {e}")
+        return jsonify([])
+
+@main.route('/salesperson', methods=['GET'])
+@ruolo_richiesto(3) 
+def salesperson_dashboard():
+    try:
+        res_veicoli = supabase.table('VEICOLO').select('*').execute()
+        veicoli_disponibili = len(res_veicoli.data)
+        
+        quotes = [] 
+        test_drives = []
+
+    except Exception as e:
+        print(f"ERRORE DASHBOARD VENDITORE: {e}")
+        veicoli_disponibili = 0
+        quotes = []
+        test_drives = []
+
+    return render_template('salesperson_dashboard.html', 
+                           quotes=quotes, 
+                           test_drives=test_drives, 
+                           stock_count=veicoli_disponibili)
+
+@main.route('/transaction_wizard', methods=['GET', 'POST'])
+@ruolo_richiesto(3) 
+def transaction_wizard():
+    if request.method == 'POST':
+        flash("Transazione/Preventivo generato con successo!", "success")
+        return redirect('/salesperson')
+
+    try:
+        res_clienti = supabase.table('PERSONA').select('*').eq('Ruolo', 1).execute()
+        clienti = res_clienti.data
+
+        res_veicoli = supabase.table('VEICOLO').select('*').execute()
+        veicoli = res_veicoli.data
+
+        res_marche = supabase.table('MARCA').select('*').execute()
+        mappa_marche = {marca['ID_Marca']: marca['Nome'] for marca in res_marche.data}
+
+    except Exception as e:
+        print(f"ERRORE WIZARD: {e}")
+        clienti, veicoli, mappa_marche = [], [], {}
+
+    return render_template('sales/transaction_wizard.html', 
+                           clienti=clienti, 
+                           veicoli=veicoli, 
+                           mappa_marche=mappa_marche)
+
+@main.route('/test_drive_calendar', methods=['GET'])
+def test_drive_calendar():
+    return render_template('test_drive_calendar.html')
