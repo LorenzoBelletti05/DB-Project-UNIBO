@@ -185,7 +185,8 @@
 </div>
 
 <div class="modal fade" id="modalVeicolo" tabindex="-1" aria-labelledby="modalVeicoloLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg"> <div class="modal-content">
+    <div class="modal-dialog modal-lg"> 
+        <div class="modal-content">
             <div class="modal-header bg-success text-white">
                 <h5 class="modal-title" id="modalVeicoloLabel">Registra Nuovo Veicolo</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -300,8 +301,24 @@
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label">Descrizione / Note</label>
+                        <label class="form-label">Descrizione/Note</label>
                         <textarea name="descrizione" class="form-control" rows="2" placeholder="Breve descrizione del veicolo..." required></textarea>
+                    </div>
+
+                    <div class="mb-3 border-top pt-3">
+                        <label class="form-label fw-bold">Seleziona Optional Inclusi</label>
+                        <div class="row">
+                            {% for opt in lista_optional_db %}
+                            <div class="col-md-4 mb-2">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="optional_ids" value="{{ opt.ID_Optional }}" id="opt_{{ opt.ID_Optional }}">
+                                    <label class="form-check-label small" for="opt_{{ opt.ID_Optional }}">
+                                        {{ opt.Nome }} (+€{{ opt.Prezzo }})
+                                    </label>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
                     </div>
 
                 </div>

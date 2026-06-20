@@ -15,16 +15,16 @@
                     <a class="nav-link fw-bold" href="/admin/catalog">Gestione Catalogo</a>
                 
                 {% elif session.get('ruolo') == 1 %}
-                    <a class="nav-link" href="/area_cliente">La mia Area</a>
-                    <a class="nav-link fw-bold text-primary" href="/catalog">📖 Public Catalog</a>
+                    <a class="nav-link" href="/area_cliente">Area Personale</a>
+                    <a class="nav-link fw-bold text-primary" href="/catalog">Catalogo Pubblico</a>
                 
                 {% elif session.get('ruolo') == 3 %} 
-                    <a class="nav-link" href="/catalog">📖 Public Catalog</a>
-                    <a class="nav-link" href="/salesperson">💼 Sales Dashboard</a>
-                    <a class="nav-link" href="/transaction_wizard">📝 New Transaction</a>
+                    <a class="nav-link" href="/catalog">Catalogo Pubblico</a>
+                    <a class="nav-link" href="/salespearson">Dashboard Vendite</a>
+                    <a class="nav-link" href="/transaction_wizard">Nuova Transazione</a>
                 {% endif %}
                 
-                <a href="/logout" class="btn btn-outline-danger btn-sm ms-3">Logout</a>
+                <a href="/logout" class="btn btn-outline-danger btn-sm ms-3">Esci</a>
             </div>
         </div>
     </nav>

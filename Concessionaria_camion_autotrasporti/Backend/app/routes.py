@@ -1,6 +1,7 @@
 from functools import wraps
 from flask import Blueprint, render_template, request, redirect, session, flash, jsonify
 from .db import supabase 
+from datetime import date, datetime
 
 main = Blueprint('main', __name__)
 
@@ -41,7 +42,7 @@ def login():
                 if utente['Ruolo'] == 4:
                     return redirect('/dashboard_admin')
                 elif utente['Ruolo'] == 3:
-                    return redirect('/salesperson')
+                    return redirect('/salespearson')
                 elif utente['Ruolo'] == 2:
                     return redirect('/dashboard_meccanico')    
                 elif utente['Ruolo'] == 1:
@@ -101,7 +102,7 @@ def home():
     if session['ruolo'] == 4: 
         return redirect('/dashboard_admin')     
     elif session['ruolo'] == 3:                
-        return redirect('/salesperson')         
+        return redirect('/salespearson')         
     elif session['ruolo'] == 2:
         return redirect('/dashboard_meccanico')
     elif session['ruolo'] == 1: 
@@ -114,22 +115,106 @@ def home():
 @ruolo_richiesto(4) 
 def dashboard_admin():
     try:
-        res_modelli = supabase.table('vista_modelli_venduti').select('*').execute()
-        dati_modelli = res_modelli.data
-        res_venditori = supabase.table('vista_performance_venditori').select('*').execute()
-        dati_venditori = res_venditori.data
+        # ==========================================
+        # SEZIONE 1: KPI (Contatori)
+        # ==========================================
+        tutti_veicoli = supabase.table('VEICOLO').select('*').execute().data
+        veicoli_catalogo = len([v for v in tutti_veicoli if v.get('Stato_Disponibilita') != 'A'])
+        
+        res_compiti = supabase.table('COMPITO').select('Stato').execute().data
+        interventi_aperti = len([c for c in res_compiti if c.get('Stato') != 'Concluso'])
+        
+        res_val = supabase.table('VALUTAZIONE_USATO').select('ID_Usato').execute().data
+        res_app = supabase.table('Approvazione_PV').select('ID_Usato').execute().data
+        id_approvati = [a['ID_Usato'] for a in res_app]
+        valutazioni_sospeso = len([v for v in res_val if v['ID_Usato'] not in id_approvati])
 
-        labels_modelli = [riga['Modello'] for riga in dati_modelli]
-        valori_modelli = [riga['totale_vendite'] for riga in dati_modelli]
-        labels_venditori = [riga['venditore'] for riga in dati_venditori]
-        valori_venditori = [riga['totale_vendite'] for riga in dati_venditori]
+        # Prepariamo le mappe base per non fare query continue
+        persone = supabase.table('PERSONA').select('ID_Persona, Nome, Cognome').execute().data
+        mappa_persone = {p['ID_Persona']: f"{p['Nome']} {p['Cognome']}" for p in persone}
+        
+        mappa_telaio_modello = {v['NumeroTelaio']: v.get('Modello', 'Ignoto') for v in tutti_veicoli}
+
+        # ==========================================
+        # REQUISITO 5.1.17: VENDITORI (Performance)
+        # ==========================================
+        vendite = supabase.table('VENDITA').select('ID_Persona, ID_Contratto').execute().data
+        conteggio_venditori = {}
+        for vendita in vendite:
+            id_venditore = vendita.get('ID_Persona')
+            if id_venditore:
+                nome = mappa_persone.get(id_venditore, f"ID {id_venditore}")
+                conteggio_venditori[nome] = conteggio_venditori.get(nome, 0) + 1
+                
+        ord_venditori = sorted(conteggio_venditori.items(), key=lambda x: x[1], reverse=True)
+        labels_venditori = [v[0] for v in ord_venditori]
+        valori_venditori = [v[1] for v in ord_venditori]
+
+        # ==========================================
+        # REQUISITO 5.1.16: MODELLI PIU VENDUTI
+        # ==========================================
+        contratti_venduti_ids = [v['ID_Contratto'] for v in vendite if v.get('ID_Contratto') is not None]
+        conteggio_modelli = {}
+        for veicolo in tutti_veicoli:
+            if veicolo.get('ID_Contratto') in contratti_venduti_ids:
+                mod = veicolo.get('Modello', 'Ignoto')
+                conteggio_modelli[mod] = conteggio_modelli.get(mod, 0) + 1
+                
+        ord_modelli = sorted(conteggio_modelli.items(), key=lambda x: x[1], reverse=True)
+        labels_modelli = [m[0] for m in ord_modelli]
+        valori_modelli = [m[1] for m in ord_modelli]
+
+        # ==========================================
+        # REQUISITO 5.1.18: MECCANICI PIU ATTIVI
+        # ==========================================
+        # Risaliamo da COMPITO a PERSONA per vedere il carico di lavoro
+        tutti_i_compiti = supabase.table('COMPITO').select('ID_Persona').execute().data
+        conteggio_meccanici = {}
+        for compito in tutti_i_compiti:
+            id_mecc = compito.get('ID_Persona')
+            if id_mecc:
+                nome_mecc = mappa_persone.get(id_mecc, f"ID {id_mecc}")
+                conteggio_meccanici[nome_mecc] = conteggio_meccanici.get(nome_mecc, 0) + 1
+        
+        ord_meccanici = sorted(conteggio_meccanici.items(), key=lambda x: x[1], reverse=True)
+        labels_meccanici = [m[0] for m in ord_meccanici]
+        valori_meccanici = [m[1] for m in ord_meccanici]
+
+        # ==========================================
+        # REQUISITO 5.1.19: MODELLI CON ALTO RIFIUTO
+        # ==========================================
+        # Risaliamo dall'esito negativo al modello del veicolo usato
+        esiti = supabase.table('Esito_MV').select('ID_Usato, Esito_Meccanico').execute().data
+        valutazioni = supabase.table('VALUTAZIONE_USATO').select('ID_Usato, NumeroTelaio').execute().data
+        mappa_usato_telaio = {v['ID_Usato']: v['NumeroTelaio'] for v in valutazioni}
+
+        rifiuti_modelli = {}
+        for esito in esiti:
+            # Assumiamo che 'N' (Negativo) o 'R' (Rifiutato) sia il carattere di scarto
+            if esito.get('Esito_Meccanico') in ['N', 'R']:
+                telaio = mappa_usato_telaio.get(esito.get('ID_Usato'))
+                if telaio:
+                    mod = mappa_telaio_modello.get(telaio, 'Ignoto')
+                    rifiuti_modelli[mod] = rifiuti_modelli.get(mod, 0) + 1
+        
+        ord_rifiuti = sorted(rifiuti_modelli.items(), key=lambda x: x[1], reverse=True)
+        labels_rifiuti = [r[0] for r in ord_rifiuti]
+        valori_rifiuti = [r[1] for r in ord_rifiuti]
+
     except Exception as e:
-        print(f"ERRORE GRAFICI: {str(e)}")
+        print(f"\n❌ ERRORE DASHBOARD ADMIN: {str(e)}\n")
+        veicoli_catalogo, interventi_aperti, valutazioni_sospeso = 0, 0, 0
         labels_modelli, valori_modelli, labels_venditori, valori_venditori = [], [], [], []
+        labels_meccanici, valori_meccanici, labels_rifiuti, valori_rifiuti = [], [], [], []
 
-    return render_template('admin/dashboard.html', 
+    return render_template('admin/admin_dashboard.html', 
+                           veicoli_catalogo=veicoli_catalogo,
+                           interventi_aperti=interventi_aperti,
+                           valutazioni_sospeso=valutazioni_sospeso,
                            labels_modelli=labels_modelli, valori_modelli=valori_modelli,
-                           labels_venditori=labels_venditori, valori_venditori=valori_venditori)
+                           labels_venditori=labels_venditori, valori_venditori=valori_venditori,
+                           labels_meccanici=labels_meccanici, valori_meccanici=valori_meccanici,
+                           labels_rifiuti=labels_rifiuti, valori_rifiuti=valori_rifiuti)
 
 # --- ROTTA AREA CLIENTE ---
 @main.route('/area_cliente')
@@ -821,41 +906,51 @@ def assegna_lavoro():
 @main.route('/catalog', methods=['GET'])
 def public_catalog():
     try:
-        condizione = request.args.get('condition')
-        marca_nome = request.args.get('brand')
-        modello = request.args.get('model')
-        prezzo_max = request.args.get('max_price')
+        # 1. Leggiamo i filtri se l'utente ha premuto "Apply Filters"
+        condition = request.args.get('condition')  # 'New' o 'Used'
+        brand_name = request.args.get('brand')
+        model_query = request.args.get('model')
+        max_price = request.args.get('max_price')
 
-        query = supabase.table('VEICOLO').select('*')
-
-        if condizione == 'New':
-            query = query.eq('Stato_Disponibilita', 'N')
-        elif condizione == 'Used':
-            query = query.eq('Stato_Disponibilita', 'U')
-
-        if modello:
-            query = query.ilike('Modello', f'%{modello}%')
-
-        if prezzo_max:
-            query = query.lte('Prezzo_Base', float(prezzo_max))
-
-        res_veicoli = query.execute()
-        vehicles = res_veicoli.data
-
+        # 2. Peschiamo tutte le marche attive
         res_marche = supabase.table('MARCA').select('*').eq('Attiva', 'Y').execute()
         brands = res_marche.data
         mappa_marche = {marca['ID_Marca']: marca['Nome'] for marca in brands}
 
-        if marca_nome:
-            id_marca_cercata = next((id_m for id_m, nome in mappa_marche.items() if nome == marca_nome), None)
-            if id_marca_cercata:
-                vehicles = [v for v in vehicles if v['ID_Marca'] == id_marca_cercata]
-            else:
-                vehicles = [] 
+        # 3. Iniziamo a costruire la Query per i VEICOLI (escludendo sempre gli archiviati 'A')
+        query = supabase.table('VEICOLO').select('*').neq('Stato_Disponibilita', 'A')
+
+        # --- APPLICHIAMO I FILTRI ---
+        
+        # Filtro Condizione (Nel db abbiamo 'N' = Nuovo, 'U' = Usato)
+        if condition == 'New':
+            query = query.eq('Stato_Disponibilita', 'N')
+        elif condition == 'Used':
+            query = query.eq('Stato_Disponibilita', 'U')
+
+        # Filtro Brand
+        if brand_name:
+            # Troviamo l'ID_Marca associato al nome selezionato
+            id_marca = next((m['ID_Marca'] for m in brands if m['Nome'] == brand_name), None)
+            if id_marca:
+                query = query.eq('ID_Marca', id_marca)
+
+        # Filtro Modello (ricerca parziale)
+        if model_query:
+            query = query.ilike('Modello', f'%{model_query}%')
+
+        # Filtro Prezzo
+        if max_price:
+            query = query.lte('Prezzo_Base', float(max_price))
+
+        # Eseguiamo la query finale!
+        vehicles = query.execute().data
 
     except Exception as e:
         print(f"ERRORE CATALOGO PUBBLICO: {e}")
-        vehicles, brands, mappa_marche = [], [], {}
+        vehicles = []
+        brands = []
+        mappa_marche = {}
 
     return render_template('public_catalog.html', vehicles=vehicles, brands=brands, mappa_marche=mappa_marche)
 
@@ -884,45 +979,246 @@ def get_optionals(numero_telaio):
         return jsonify([])
 
 # --- DASHBOARD VENDITORE (TEAM) ---
-@main.route('/salesperson', methods=['GET'])
-@ruolo_richiesto(3) 
-def salesperson_dashboard():
+@main.route('/salespearson', methods=['GET'])
+@ruolo_richiesto(3)  # 3 = Venditore
+def salespearson_dashboard():
     try:
-        res_veicoli = supabase.table('VEICOLO').select('*').execute()
+        # 1. Contatore veicoli in catalogo (non archiviati)
+        res_veicoli = supabase.table('VEICOLO').select('NumeroTelaio, Modello').neq('Stato_Disponibilita', 'A').execute()
         veicoli_disponibili = len(res_veicoli.data)
-        quotes, test_drives = [], [] 
+        
+        # Prepariamo la mappa dei veicoli per tradurre il telaio nel nome del Modello
+        tutti_veicoli = supabase.table('VEICOLO').select('NumeroTelaio, Modello').execute().data
+        mappa_veicoli = {v['NumeroTelaio']: v['Modello'] for v in tutti_veicoli}
+
+        # Prepariamo la mappa dei clienti per tradurre l'ID nel Nome e Cognome
+        clienti = supabase.table('PERSONA').select('ID_Persona, Nome, Cognome').eq('Ruolo', 1).execute().data
+        mappa_clienti = {c['ID_Persona']: f"{c['Nome']} {c['Cognome']}" for c in clienti}
+
+        id_venditore = session['user_id']
+
+        # 2. TRATTATIVE (Preventivi Aperti) assegnati a QUESTO venditore
+        preventivi_raw = supabase.table('PREVENTIVO').select('*').eq('ID_Persona', id_venditore).eq('Stato_PreventivoChiuso', 'N').execute().data
+        
+        quotes = []
+        for p in preventivi_raw:
+            quotes.append({
+                "id": p['ID_Preventivo'],
+                "cliente": mappa_clienti.get(p.get('Pos_ID_Persona'), "Cliente Ignoto"),
+                "veicolo": mappa_veicoli.get(p.get('NumeroTelaio'), "Veicolo Ignoto")
+            })
+
+        # 3. TEST DRIVE assegnati a QUESTO venditore in supervisione
+        test_drives_raw = supabase.table('TEST_DRIVE').select('*').eq('Sup_ID_Persona', id_venditore).execute().data
+        
+        slot_orari = supabase.table('SLOT_ORARIO').select('*').execute().data
+        mappa_slot = {s['ID_Slot']: f"{s['Ora_Inizio']} - {s['Ora_Fine']}" for s in slot_orari}
+        
+        # Tabella ponte per trovare a quale auto si riferisce il test drive
+        utilizzo_td = supabase.table('Utilizzo_TV').select('*').execute().data
+        mappa_utilizzo = {u['ID_TestDrive']: u['NumeroTelaio'] for u in utilizzo_td}
+
+        test_drives = []
+        for td in test_drives_raw:
+            telaio_td = mappa_utilizzo.get(td['ID_TestDrive'], "")
+            modello_td = mappa_veicoli.get(telaio_td, "Veicolo Ignoto")
+
+            test_drives.append({
+                "data": td['Data'],
+                "orario": mappa_slot.get(td['ID_Slot'], "Orario ignoto"),
+                "cliente": mappa_clienti.get(td['ID_Persona'], "Cliente ignoto"),
+                "veicolo": modello_td
+            })
+
     except Exception as e:
         print(f"ERRORE DASHBOARD VENDITORE: {e}")
         veicoli_disponibili, quotes, test_drives = 0, [], []
 
-    return render_template('salesperson_dashboard.html', 
-                           quotes=quotes, test_drives=test_drives, stock_count=veicoli_disponibili)
+    return render_template('salespearson_dashboard.html', 
+                           quotes=quotes, 
+                           test_drives=test_drives, 
+                           stock_count=veicoli_disponibili)
 
 # --- TRANSACTION WIZARD VENDITORE (TEAM) ---
 @main.route('/transaction_wizard', methods=['GET', 'POST'])
-@ruolo_richiesto(3) 
+@ruolo_richiesto(3) # Solo per i Venditori (Ruolo 3)
 def transaction_wizard():
     if request.method == 'POST':
-        flash("Transazione/Preventivo generato con successo!", "success")
-        return redirect('/salesperson')
+        try:
+            azione = request.form.get('azione') 
+            id_cliente = int(request.form.get('id_cliente'))
+            
+            # 1. FIX TELAIO: Ora il form HTML ci manda direttamente il NumeroTelaio (Univoco!)
+            numero_telaio = request.form.get('targa_veicolo')
+            
+            prezzo_finale = float(request.form.get('prezzo_finale'))
+            scadenza = int(request.form.get('scadenza'))
+            note = request.form.get('note') or "Nessuna nota aggiuntiva."
+            
+            id_venditore = session['user_id']
+            oggi = date.today().isoformat()
+            ora = datetime.now().strftime("%H:%M")
 
+            # 2. FIX GERARCHIA CLIENTE: Assicuriamoci che l'ID sia nella tabella CLIENTE
+            check_cli = supabase.table('CLIENTE').select('*').eq('ID_Persona', id_cliente).execute()
+            if len(check_cli.data) == 0:
+                # Se non c'è, lo inseriamo silenziosamente
+                supabase.table('CLIENTE').insert({'ID_Persona': id_cliente}).execute()
+
+            # --- BIVIO: PREVENTIVO O VENDITA? ---
+            if azione == 'preventivo':
+                nuovo_preventivo = {
+                    "Stato_PreventivoChiuso": "N", 
+                    "Durata_Massima": scadenza,
+                    "Note": f"Prezzo proposto: €{prezzo_finale}. Note: {note}",
+                    "NumeroTelaio": numero_telaio,
+                    "ID_Persona": id_venditore,    
+                    "Pos_ID_Persona": id_cliente   
+                }
+                supabase.table('PREVENTIVO').insert(nuovo_preventivo).execute()
+                flash("Preventivo salvato! Il veicolo rimane in catalogo.", "info")
+
+            elif azione == 'vendita':
+                # 1. Creiamo il CONTRATTO
+                nuovo_contratto = {
+                    "Tipo_Contratto": "Vendita",
+                    "Stato": "Concluso",
+                    "Data_Decorrenza": oggi,
+                    "Note_Legali": note,
+                    "Data_Scadenza": oggi, 
+                    "Importo_Totale": prezzo_finale,
+                    "Data_Stipula": oggi,
+                    "ID_Persona": id_cliente
+                }
+                res_contratto = supabase.table('CONTRATTO').insert(nuovo_contratto).execute()
+                id_contratto = res_contratto.data[0]['ID_Contratto']
+                
+                # --- FIX ID VENDITA: Calcoliamo il prossimo numero disponibile ---
+                max_vendita = supabase.table('VENDITA').select('ID_Vendita').order('ID_Vendita', desc=True).limit(1).execute()
+                prossimo_id = max_vendita.data[0]['ID_Vendita'] + 1 if max_vendita.data else 1
+                
+                # 2. Creiamo la VENDITA inserendo l'ID manualmente
+                nuova_vendita = {
+                    "ID_Vendita": prossimo_id,  # <-- Inserito a mano!
+                    "ID_Contratto": id_contratto,
+                    "Stato": "C", 
+                    "Data_Vendita": oggi,
+                    "Ora_Vendita": ora,
+                    "ID_Persona": id_venditore
+                }
+                supabase.table('VENDITA').insert(nuova_vendita).execute()
+                
+                # 3. Aggiorniamo il VEICOLO
+                supabase.table('VEICOLO').update({
+                    'ID_Contratto': id_contratto,
+                    'Stato_Disponibilita': 'A'
+                }).eq('NumeroTelaio', numero_telaio).execute()
+                
+                flash("Vendita confermata! L'auto è stata archiviata e i grafici aggiornati.", "success")
+
+            # ---> MANCAVANO QUESTE TRE RIGHE IMPORTANTISSIME! <---
+            return redirect('/salespearson')
+
+        except Exception as e:
+            print(f"ERRORE TRANSAZIONE: {e}")
+            flash(f"Errore durante l'operazione: {e}", "danger")
+            return redirect('/transaction_wizard')
+
+    # --- GET: Caricamento dati per riempire i menu a tendina ---
     try:
-        res_clienti = supabase.table('PERSONA').select('*').eq('Ruolo', 1).execute()
-        clienti = res_clienti.data
-        res_veicoli = supabase.table('VEICOLO').select('*').execute()
-        veicoli = res_veicoli.data
-        res_marche = supabase.table('MARCA').select('*').execute()
-        mappa_marche = {marca['ID_Marca']: marca['Nome'] for marca in res_marche.data}
+        clienti = supabase.table('PERSONA').select('*').eq('Ruolo', 1).execute().data
+        veicoli = supabase.table('VEICOLO').select('*').neq('Stato_Disponibilita', 'A').execute().data
+        
+        res_marche = supabase.table('MARCA').select('*').execute().data
+        mappa_marche = {m['ID_Marca']: m['Nome'] for m in res_marche}
     except Exception as e:
         print(f"ERRORE WIZARD: {e}")
         clienti, veicoli, mappa_marche = [], [], {}
 
-    return render_template('sales/transaction_wizard.html', clienti=clienti, veicoli=veicoli, mappa_marche=mappa_marche)
+    return render_template('sales/transaction_wizard.html', 
+                           clienti=clienti, 
+                           veicoli=veicoli, 
+                           mappa_marche=mappa_marche)
 
 # --- CALENDARIO TEST DRIVE (TEAM) ---
-@main.route('/test_drive_calendar', methods=['GET'])
+@main.route('/test_drive_calendar', methods=['GET', 'POST'])
+@ruolo_richiesto(3) # Solo i Venditori possono gestire i test drive
 def test_drive_calendar():
-    return render_template('test_drive_calendar.html')
+    if request.method == 'POST':
+        try:
+            # 1. Raccogliamo i dati dal form modale
+            data_td = request.form.get('data_test')
+            id_slot = int(request.form.get('id_slot'))
+            id_cliente = int(request.form.get('id_cliente'))
+            numero_telaio = request.form.get('numero_telaio')
+            id_venditore = session['user_id'] # Il venditore loggato
+            
+            # 2. Inserimento in TEST_DRIVE
+            nuovo_td = {
+                "Data": data_td,
+                "ID_Slot": id_slot,
+                "ID_Persona": id_cliente,
+                "Sup_ID_Persona": id_venditore
+            }
+            res_td = supabase.table('TEST_DRIVE').insert(nuovo_td).execute()
+            
+            # 3. Inserimento nella tabella ponte Utilizzo_TV (Lega l'auto al Test Drive)
+            if res_td.data:
+                id_generato = res_td.data[0]['ID_TestDrive']
+                supabase.table('Utilizzo_TV').insert({
+                    "NumeroTelaio": numero_telaio,
+                    "ID_TestDrive": id_generato
+                }).execute()
+                
+            flash("Test Drive prenotato con successo!", "success")
+        except Exception as e:
+            print(f"ERRORE PRENOTAZIONE TEST DRIVE: {e}")
+            flash("Errore durante il salvataggio nel database.", "danger")
+            
+        return redirect('/test_drive_calendar')
+
+    # --- FASE DI GET: CARICAMENTO DATI PER IL CALENDARIO ---
+    try:
+        clienti = supabase.table('PERSONA').select('*').eq('Ruolo', 1).execute().data
+        veicoli = supabase.table('VEICOLO').select('*').neq('Stato_Disponibilita', 'A').execute().data
+        slot_orari = supabase.table('SLOT_ORARIO').select('*').execute().data
+        
+        prenotazioni = supabase.table('TEST_DRIVE').select('*').execute().data
+        utilizzo = supabase.table('Utilizzo_TV').select('*').execute().data
+        tutti_veicoli = supabase.table('VEICOLO').select('NumeroTelaio, Modello').execute().data
+        
+        mappa_slot = {s['ID_Slot']: s for s in slot_orari}
+        mappa_clienti = {c['ID_Persona']: f"{c['Nome']} {c['Cognome']}" for c in clienti}
+        mappa_veicoli = {v['NumeroTelaio']: v['Modello'] for v in tutti_veicoli}
+        mappa_utilizzo = {u['ID_TestDrive']: u['NumeroTelaio'] for u in utilizzo}
+
+        events = []
+        for p in prenotazioni:
+            slot = mappa_slot.get(p['ID_Slot'])
+            if not slot: continue
+            
+            start_time = f"{p['Data']}T{slot['Ora_Inizio']}:00"
+            end_time = f"{p['Data']}T{slot['Ora_Fine']}:00"
+            
+            cliente_nome = mappa_clienti.get(p['ID_Persona'], "Cliente Ignoto")
+            telaio = mappa_utilizzo.get(p['ID_TestDrive'], "")
+            modello = mappa_veicoli.get(telaio, "Veicolo Ignoto")
+
+            events.append({
+                "title": f"{modello} ({cliente_nome})",
+                "start": start_time,
+                "end": end_time,
+                "backgroundColor": "#dc3545",
+                "borderColor": "#dc3545"
+            })
+            
+    except Exception as e:
+        print(f"ERRORE CARICAMENTO CALENDARIO: {e}")
+        clienti, veicoli, slot_orari, events = [], [], [], []
+
+    return render_template('test_drive_calendar.html', 
+                           clienti=clienti, veicoli=veicoli, 
+                           slot_orari=slot_orari, events=events)
 
 # --- ROTTA CORRETTA: CAMBIATO <int:id_veicolo> in <string:telaio> ---
 @main.route('/admin/toggle_veicolo/<string:telaio>', methods=['POST'])

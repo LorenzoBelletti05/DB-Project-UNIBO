@@ -11,16 +11,16 @@
         {% elif session.get('ruolo') == 1 %}
             <a href="/mie_auto">Le mie auto</a>
             <a href="/prenota">Prenota intervento</a>
-            <a href="/catalog">Public Catalog</a>
+            <a href="/catalog">Catalogo Pubblico</a>
         
         {% elif session.get('ruolo') == 2 %}
-            <a href="/catalog">Public Catalog</a>
-            <a href="/salesperson">Sales Dashboard</a>
-            <a href="/transaction_wizard">New Transaction</a>
-            <a href="/test_drive_calendar">Test Drive Calendar</a>
+            <a href="/catalog">Catalogo Pubblico</a>
+            <a href="/salespearson">Dashboard Vendite</a>
+            <a href="/transaction_wizard">Nuova Transazione</a>
+            <a href="/test_drive_calendar">Calendario Test Drive</a>
         {% elif session.get('ruolo') == 5 %}
-            <a href="/catalog">Public Catalog</a>
-            <a href="/test_drive_calendar">Test Drive Calendar</a>
+            <a href="/catalog">Catalogo Pubblico</a>
+            <a href="/test_drive_calendar">Calendario Test Drive</a>
         {% endif %}
     </nav>
     </head>

@@ -1,0 +1,137 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Pannello di Controllo - Direzione</h2>
+        <a href="/admin/add_crew" class="btn btn-primary">+ Nuovo Dipendente</a>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card text-white bg-success shadow-sm border-0">
+                <div class="card-body">
+                    <h5 class="card-title fw-light">Veicoli in Catalogo</h5>
+                    <h2 class="mb-0 fw-bold">{{ veicoli_catalogo }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-white bg-info shadow-sm border-0">
+                <div class="card-body">
+                    <h5 class="card-title fw-light">Interventi Aperti</h5>
+                    <h2 class="mb-0 fw-bold">{{ interventi_aperti }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-white bg-warning shadow-sm border-0">
+                <div class="card-body text-dark">
+                    <h5 class="card-title fw-light">Valutazioni in Sospeso</h5>
+                    <h2 class="mb-0 fw-bold">{{ valutazioni_sospeso }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm h-100 border-0">
+                <div class="card-header bg-white fw-bold border-bottom-0 pt-3">Migliori Venditori (Ricavi)</div>
+                <div class="card-body"><canvas id="chartVenditori"></canvas></div>
+            </div>
+        </div>
+
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm h-100 border-0">
+                <div class="card-header bg-white fw-bold border-bottom-0 pt-3">Modelli più Venduti</div>
+                <div class="card-body d-flex justify-content-center">
+                    <div style="width: 80%;"><canvas id="chartModelli"></canvas></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm h-100 border-0">
+                <div class="card-header bg-white fw-bold border-bottom-0 pt-3">Meccanici Più Attivi (Carico di Lavoro)</div>
+                <div class="card-body"><canvas id="chartMeccanici"></canvas></div>
+            </div>
+        </div>
+
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm h-100 border-0">
+                <div class="card-header bg-white fw-bold border-bottom-0 pt-3">Modelli con alto tasso di Rifiuto (Usato)</div>
+                <div class="card-body d-flex justify-content-center">
+                    <div style="width: 80%;"><canvas id="chartRifiuti"></canvas></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // CARICAMENTO DATI
+    let l_venditori = {{ labels_venditori | tojson | safe }}; let d_venditori = {{ valori_venditori | tojson | safe }};
+    let l_modelli = {{ labels_modelli | tojson | safe }};     let d_modelli = {{ valori_modelli | tojson | safe }};
+    let l_meccanici = {{ labels_meccanici | tojson | safe }}; let d_meccanici = {{ valori_meccanici | tojson | safe }};
+    let l_rifiuti = {{ labels_rifiuti | tojson | safe }};     let d_rifiuti = {{ valori_rifiuti | tojson | safe }};
+
+    // FALLBACK SE VUOTI
+    if (!l_venditori.length) { l_venditori = ['Nessun dato']; d_venditori = [0]; }
+    if (!l_modelli.length) { l_modelli = ['Nessun dato']; d_modelli = [1]; }
+    if (!l_meccanici.length) { l_meccanici = ['Nessun dato']; d_meccanici = [0]; }
+    if (!l_rifiuti.length) { l_rifiuti = ['Nessun dato']; d_rifiuti = [1]; }
+
+    // 1. CHART VENDITORI
+    new Chart(document.getElementById('chartVenditori'), {
+        type: 'bar',
+        data: { labels: l_venditori, datasets: [{ data: d_venditori, backgroundColor: '#0d6efd', borderRadius: 4 }] },
+        options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+    });
+
+    // 2. CHART MODELLI VENDUTI
+    new Chart(document.getElementById('chartModelli'), {
+        type: 'doughnut',
+        data: { labels: l_modelli, datasets: [{ data: d_modelli, backgroundColor: ['#198754', '#ffc107', '#dc3545', '#0dcaf0'], borderWidth: 0 }] },
+        options: { cutout: '65%' }
+    });
+
+    // 3. CHART MECCANICI (Nuovo!)
+    new Chart(document.getElementById('chartMeccanici'), {
+        type: 'bar',
+        data: { labels: l_meccanici, datasets: [{ label: 'Interventi Assegnati', data: d_meccanici, backgroundColor: '#6f42c1', borderRadius: 4 }] },
+        options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+    });
+
+    // 4. CHART MODELLI RIFIUTATI (Nuovo!)
+    new Chart(document.getElementById('chartRifiuti'), {
+        type: 'pie',
+        data: { labels: l_rifiuti, datasets: [{ data: d_rifiuti, backgroundColor: ['#dc3545', '#fd7e14', '#ffc107', '#6c757d'], borderWidth: 0 }] }
+    });
+</script>
+
+<div class="row mt-5 mb-4 container mx-auto">
+    <div class="col-12"><h4 class="fw-bold border-bottom pb-2">Area Logistica e Officina</h4></div>
+    <div class="col-md-6 mt-3">
+        <div class="card shadow-sm border-0 border-start border-primary border-4 h-100">
+            <div class="card-body p-4">
+                <h5 class="fw-bold text-primary">Gestione Prenotazioni</h5>
+                <p class="text-muted small">Vedi le richieste dei clienti e assegna i compiti ai meccanici.</p>
+                <a href="/admin/prenotazioni" class="btn btn-outline-primary w-100">Vedi Prenotazioni in Sospeso</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 mt-3">
+        <div class="card shadow-sm border-0 border-start border-dark border-4 h-100">
+            <div class="card-body p-4">
+                <h5 class="fw-bold text-dark">Approvazione Usato</h5>
+                <p class="text-muted small">Esamina le perizie dei meccanici e convalida l'acquisto dei veicoli.</p>
+                <a href="/admin/approva_usato" class="btn btn-dark w-100">Vedi Perizie da Approvare</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
