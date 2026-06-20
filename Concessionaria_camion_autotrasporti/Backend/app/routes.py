@@ -9,7 +9,6 @@ def ruolo_richiesto(ruolo_necessario):
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
-            # Controlla se l'utente è loggato e se il ruolo corrisponde
             if 'ruolo' not in session or session['ruolo'] != ruolo_necessario:
                 flash("Non hai i permessi necessari per accedere a quest'area.", "danger")
                 return redirect('/login')
@@ -25,7 +24,6 @@ def login():
         password = request.form.get('password')
 
         try:
-            # QUERY: Ricerca utente usando 'Mail' (maiuscola come nel DB)
             response = supabase.table('PERSONA').select('*').eq('Mail', email).execute()
             utenti = response.data
 
@@ -34,13 +32,11 @@ def login():
                 return redirect('/login')
                 
             utente = utenti[0]
-            # Controllo password (usando 'Password' come da DB)
             if utente['Password'] == password:
                 session['user_id'] = utente['ID_Persona']
                 session['ruolo'] = utente['Ruolo'] 
                 session['nome'] = utente['Nome']
 
-                # SMISTAMENTO
                 if utente['Ruolo'] == 4:
                     return redirect('/dashboard_admin')
                 elif utente['Ruolo'] == 1:
@@ -63,13 +59,11 @@ def login():
 def registrazione():
     try:
         mail = request.form.get('mail')
-        # Controllo esistenza
         controllo = supabase.table('PERSONA').select('*').eq('Mail', mail).execute()
         if len(controllo.data) > 0:
             flash("Email già registrata.", "info")
             return redirect('/login')
             
-        # Formattazione Residenza (Unione campi per colonna unica varchar(50))
         residenza = f"{request.form.get('via')} {request.form.get('civico')}, {request.form.get('cap')} {request.form.get('citta')} ({request.form.get('provincia')})"
         
         nuovo_utente = {
@@ -81,7 +75,7 @@ def registrazione():
             "Telefono": request.form.get('telefono'),
             "Mail": mail,
             "Password": request.form.get('password'),
-            "Ruolo": 1  # 1 = Cliente
+            "Ruolo": 1  
         }
         
         supabase.table('PERSONA').insert(nuovo_utente).execute()
@@ -99,13 +93,12 @@ def home():
     if 'user_id' not in session: 
         return redirect('/login')
         
-    # Smistamento centrale in base al ruolo nel DB
     if session['ruolo'] == 4: 
-        return redirect('/dashboard_admin')     # 4 = Direzione
-    elif session['ruolo'] == 3:                 # <--- CAMBIATO QUI IN 3
-        return redirect('/salesperson')         # 3 = Venditore
+        return redirect('/dashboard_admin')     
+    elif session['ruolo'] == 3:                 
+        return redirect('/salesperson')         
     elif session['ruolo'] == 1: 
-        return redirect('/area_cliente')        # 1 = Cliente
+        return redirect('/area_cliente')        
         
     return f"Benvenuto {session.get('nome', '')}! Il tuo ruolo ({session['ruolo']}) non ha ancora una home dedicata."
 
@@ -113,32 +106,41 @@ def home():
 @ruolo_richiesto(4) 
 def dashboard_admin():
     try:
-        # 1. Recupero dati per il Grafico dei Modelli (Query 5.1.16)
+        # --- 1. KPI: Veicoli in Catalogo ---
+        # Contiamo tutti i veicoli che NON sono in stato Archiviato ('A')
+        res_veicoli = supabase.table('VEICOLO').select('NumeroTelaio').neq('Stato_Disponibilita', 'A').execute()
+        veicoli_catalogo = len(res_veicoli.data)
+        
+        # --- 2. KPI: Interventi Aperti (Officina) ---
+        # Contiamo i compiti che non sono ancora completati. (Modifica 'Stato' e 'Completato' se usi nomi diversi)
+        res_interventi = supabase.table('COMPITO').select('ID_Compito').neq('Stato', 'Completato').execute()
+        interventi_aperti = len(res_interventi.data)
+        
+        # --- 3. KPI: Valutazioni in Sospeso ---
+        # Contiamo le valutazioni usato che aspettano l'approvazione finale (Es. Approvazione_PV è null)
+        res_valutazioni = supabase.table('VALUTAZIONE_USATO').select('ID_Usato').is_('Approvazione_PV', 'null').execute()
+        valutazioni_sospeso = len(res_valutazioni.data)
+
+        # --- GRAFICI (Statistiche di Vendita) ---
+        # Interroghiamo le Viste SQL (Assicurati di averle create in Supabase!)
         res_modelli = supabase.table('vista_modelli_venduti').select('*').execute()
-        dati_modelli = res_modelli.data
+        labels_modelli = [riga['Modello'] for riga in res_modelli.data]
+        valori_modelli = [riga['totale_vendite'] for riga in res_modelli.data]
 
-        # 2. Recupero dati per il Grafico dei Venditori (Query 5.1.17)
         res_venditori = supabase.table('vista_performance_venditori').select('*').execute()
-        dati_venditori = res_venditori.data
-
-        # 3. Creiamo le liste da passare all'HTML
-        labels_modelli = [riga['Modello'] for riga in dati_modelli]
-        valori_modelli = [riga['totale_vendite'] for riga in dati_modelli]
-
-        labels_venditori = [riga['venditore'] for riga in dati_venditori]
-        valori_venditori = [riga['totale_vendite'] for riga in dati_venditori]
+        labels_venditori = [riga['venditore'] for riga in res_venditori.data]
+        valori_venditori = [riga['totale_vendite'] for riga in res_venditori.data]
 
     except Exception as e:
-        # SE C'È UN ERRORE (es. viste SQL non ancora create),
-        # CREIAMO LISTE VUOTE PER NON FAR CRASHARE L'HTML!
-        print(f"ERRORE GRAFICI: {str(e)}")
-        labels_modelli = []
-        valori_modelli = []
-        labels_venditori = []
-        valori_venditori = []
+        print(f"ERRORE DASHBOARD ADMIN: {str(e)}")
+        # In caso di errore (es. tabelle vuote o viste mancanti), mettiamo tutto a zero
+        veicoli_catalogo, interventi_aperti, valutazioni_sospeso = 0, 0, 0
+        labels_modelli, valori_modelli, labels_venditori, valori_venditori = [], [], [], []
 
-    # 4. INVIAMO TUTTO ALLA PAGINA HTML (Questa è la riga che mancava o era sbagliata!)
     return render_template('admin/dashboard.html', 
+                           veicoli_catalogo=veicoli_catalogo,
+                           interventi_aperti=interventi_aperti,
+                           valutazioni_sospeso=valutazioni_sospeso,
                            labels_modelli=labels_modelli, 
                            valori_modelli=valori_modelli,
                            labels_venditori=labels_venditori,
@@ -147,14 +149,12 @@ def dashboard_admin():
 @main.route('/area_cliente')
 @ruolo_richiesto(1) 
 def area_cliente():
-    # Modifica qui in base a dove si trova effettivamente il tuo file
     return render_template('dashboard/dashboard.html')
 
 @main.route('/admin/utenti')
 @ruolo_richiesto(4)
 def gestione_utenti():
     response = supabase.table('PERSONA').select('*').execute()
-    # Abbiamo aggiunto "admin/" prima del nome del file
     return render_template('admin/admin_user.html', utenti=response.data)
 
 @main.route('/logout')
@@ -163,21 +163,18 @@ def logout():
     return redirect('/login')
 
 @main.route('/admin/add_crew', methods=['GET', 'POST'])
-@ruolo_richiesto(4)  # Solo il Proprietario/Admin può assumere!
+@ruolo_richiesto(4)  
 def add_crew():
     if request.method == 'POST':
-        # 1. Raccogliamo i dati dal form
-        ruolo_scelto = int(request.form.get('ruolo')) # Sarà 2, 3 o 5
+        ruolo_scelto = int(request.form.get('ruolo')) 
         mail = request.form.get('mail')
         
         try:
-            # 2. Controllo se la mail esiste già
             controllo = supabase.table('PERSONA').select('*').eq('Mail', mail).execute()
             if len(controllo.data) > 0:
                 flash("Errore: Email già presente nel sistema.", "danger")
                 return redirect('/admin/add_crew')
             
-            # 3. Prepariamo i dati per la tabella PERSONA
             nuovo_dipendente = {
                 "Nome": request.form.get('nome'),
                 "Cognome": request.form.get('cognome'),
@@ -189,11 +186,7 @@ def add_crew():
                 "Ruolo": ruolo_scelto 
             }
             
-            # 4. Inserimento nel Database
-            # (Nota: Più avanti aggiungeremo anche l'inserimento automatico nella 
-            # tabella LAVORATORE e relative specializzazioni come da tuo ER)
             supabase.table('PERSONA').insert(nuovo_dipendente).execute()
-            
             flash(f"Dipendente {nuovo_dipendente['Nome']} aggiunto con successo!", "success")
             return redirect('/dashboard_admin')
             
@@ -202,7 +195,6 @@ def add_crew():
             flash("Errore durante l'inserimento nel database.", "danger")
             return redirect('/admin/add_crew')
 
-    # Se è una richiesta GET, mostriamo semplicemente il modulo
     return render_template('admin/add_crew.html')
 
 @main.route('/admin/catalog', methods=['GET', 'POST'])
@@ -210,7 +202,6 @@ def add_crew():
 def gestione_catalogo():
     if request.method == 'POST':
         
-        # --- 1. GESTIONE INSERIMENTO MARCA ---
         if 'aggiungi_marca' in request.form: 
             nome_marca = request.form.get('nome_marca')
             try:
@@ -221,8 +212,6 @@ def gestione_catalogo():
                 flash("Errore durante l'inserimento della marca.", "danger")
             return redirect('/admin/catalog')
 
-        # --- 2. GESTIONE INSERIMENTO VEICOLO ---
-        # --- 2. GESTIONE INSERIMENTO VEICOLO (COMPLETO) ---
         if 'aggiungi_veicolo' in request.form:
             try:
                 nuovo_veicolo = {
@@ -240,8 +229,6 @@ def gestione_catalogo():
                     "Data_Immatricolazione": request.form.get('data_immatricolazione'),
                     "Descrizione": request.form.get('descrizione'),
                     "Configurazione_Assi": request.form.get('configurazione_assi'),
-                    
-                    # --- GLI ULTIMI 3 CAMPI DAL TUO SCREENSHOT ---
                     "Numero_Assi": int(request.form.get('numero_assi')),
                     "NumeroTelaio": request.form.get('numero_telaio').upper(),
                     "Tipologia_Motrice": request.form.get('tipologia_motrice')
@@ -253,14 +240,21 @@ def gestione_catalogo():
                 flash("Errore durante il salvataggio del veicolo.", "danger")
             return redirect('/admin/catalog')
 
-    # --- RECUPERO DATI PER LE TABELLE ---
     try:
         lista_marche = supabase.table('MARCA').select('*').execute().data
-        lista_veicoli = supabase.table('VEICOLO').select('*').execute().data
+        tutti_veicoli = supabase.table('VEICOLO').select('*').execute().data
+        
+        # Dividiamo i veicoli tramite Python
+        lista_veicoli = [v for v in tutti_veicoli if v['Stato_Disponibilita'] != 'A']
+        veicoli_archiviati = [v for v in tutti_veicoli if v['Stato_Disponibilita'] == 'A']
+        
     except:
-        lista_marche, lista_veicoli = [], []
+        lista_marche, lista_veicoli, veicoli_archiviati = [], [], []
 
-    return render_template('admin/catalog.html', marche=lista_marche, veicoli=lista_veicoli)
+    return render_template('admin/catalog.html', 
+                           marche=lista_marche, 
+                           veicoli=lista_veicoli,
+                           veicoli_archiviati=veicoli_archiviati)
 
 @main.route('/catalog', methods=['GET'])
 def public_catalog():
@@ -275,29 +269,21 @@ def public_catalog():
 
     except Exception as e:
         print(f"ERRORE CATALOGO PUBBLICO: {e}")
-        vehicles = []
-        brands = []
-        mappa_marche = {}
+        vehicles, brands, mappa_marche = [], [], {}
 
     return render_template('public_catalog.html', vehicles=vehicles, brands=brands, mappa_marche=mappa_marche)
 
 @main.route('/salesperson', methods=['GET'])
-@ruolo_richiesto(3)  # 3 = Venditore
+@ruolo_richiesto(3)  
 def salesperson_dashboard():
     try:
-        # Peschiamo il numero di veicoli attualmente in catalogo per le statistiche
         res_veicoli = supabase.table('VEICOLO').select('*').execute()
         veicoli_disponibili = len(res_veicoli.data)
-        
-        # In futuro qui faremo le query alle tabelle PREVENTIVO e TEST_DRIVE
-        quotes = [] 
-        test_drives = []
+        quotes, test_drives = [], []
 
     except Exception as e:
         print(f"ERRORE DASHBOARD VENDITORE: {e}")
-        veicoli_disponibili = 0
-        quotes = []
-        test_drives = []
+        veicoli_disponibili, quotes, test_drives = 0, [], []
 
     return render_template('salesperson_dashboard.html', 
                            quotes=quotes, 
@@ -305,27 +291,17 @@ def salesperson_dashboard():
                            stock_count=veicoli_disponibili)
 
 @main.route('/transaction_wizard', methods=['GET'])
-@ruolo_richiesto(3) # Solo per i Venditori (Ruolo 3)
+@ruolo_richiesto(3) 
 def transaction_wizard():
     if request.method == 'POST':
-        # Qui in futuro inseriremo i dati nella tabella PREVENTIVO o TRANSAZIONE
-        # Per ora simuliamo il successo per testare l'interfaccia!
         flash("Transazione/Preventivo generato con successo!", "success")
         return redirect('/salesperson')
 
     try:
-        # 1. Recupero Clienti (Ruolo = 1)
-        res_clienti = supabase.table('PERSONA').select('*').eq('Ruolo', 1).execute()
-        clienti = res_clienti.data
-
-        # 2. Recupero Veicoli in catalogo
-        res_veicoli = supabase.table('VEICOLO').select('*').execute()
-        veicoli = res_veicoli.data
-
-        # 3. Recupero Marche (per mostrare i nomi corretti dei veicoli)
+        clienti = supabase.table('PERSONA').select('*').eq('Ruolo', 1).execute().data
+        veicoli = supabase.table('VEICOLO').select('*').execute().data
         res_marche = supabase.table('MARCA').select('*').execute()
         mappa_marche = {marca['ID_Marca']: marca['Nome'] for marca in res_marche.data}
-
     except Exception as e:
         print(f"ERRORE WIZARD: {e}")
         clienti, veicoli, mappa_marche = [], [], {}
@@ -337,5 +313,47 @@ def transaction_wizard():
 
 @main.route('/test_drive_calendar', methods=['GET'])
 def test_drive_calendar():
-    # Qui in futuro faremo la query per prendere le prenotazioni reali
     return render_template('test_drive_calendar.html')
+
+# --- ROTTA CORRETTA: CAMBIATO <int:id_veicolo> in <string:telaio> ---
+@main.route('/admin/toggle_veicolo/<string:telaio>', methods=['POST'])
+@ruolo_richiesto(4) 
+def toggle_veicolo(telaio):
+    try:
+        res = supabase.table('VEICOLO').select('Stato_Disponibilita').eq('NumeroTelaio', telaio).single().execute()
+        attuale = res.data['Stato_Disponibilita']
+        
+        # Se era disponibile o usato, lo archivio ('A'). Se era archiviato, lo faccio tornare Usato ('U')
+        nuovo_stato = 'A' if attuale != 'A' else 'U'
+        
+        supabase.table('VEICOLO').update({'Stato_Disponibilita': nuovo_stato}).eq('NumeroTelaio', telaio).execute()
+        
+        flash(f"Veicolo con Telaio {telaio} spostato con successo!", "success")
+    except Exception as e:
+        print(f"ERRORE ARCHIVIAZIONE: {e}")
+        flash("Errore durante lo spostamento del veicolo.", "danger")
+        
+    return redirect('/admin/catalog')
+
+@main.route('/admin/toggle_marca/<int:id_marca>', methods=['POST'])
+@ruolo_richiesto(4) 
+def toggle_marca(id_marca):
+    try:
+        res_marca = supabase.table('MARCA').select('Attiva').eq('ID_Marca', id_marca).single().execute()
+        stato_attuale_marca = res_marca.data['Attiva']
+        
+        nuovo_stato_marca = 'N' if stato_attuale_marca == 'Y' else 'Y'
+        # Se disattivo la marca, i veicoli diventano 'A'. Se la riattivo, tornano 'N' (Nuovi)
+        nuovo_stato_veicoli = 'A' if nuovo_stato_marca == 'N' else 'N'
+        
+        supabase.table('MARCA').update({'Attiva': nuovo_stato_marca}).eq('ID_Marca', id_marca).execute()
+        supabase.table('VEICOLO').update({'Stato_Disponibilita': nuovo_stato_veicoli}).eq('ID_Marca', id_marca).execute()
+        
+        azione = "disattivata" if nuovo_stato_marca == 'N' else "riattivata"
+        flash(f"Marca {azione} con successo. Tutti i relativi veicoli sono stati aggiornati.", "success")
+        
+    except Exception as e:
+        print(f"ERRORE TOGGLE MARCA: {e}")
+        flash("Errore durante l'aggiornamento della marca.", "danger")
+        
+    return redirect('/admin/catalog')

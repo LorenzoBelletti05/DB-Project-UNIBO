@@ -14,18 +14,9 @@
             <button class="nav-link fw-bold" id="veicoli-tab" data-bs-toggle="tab" data-bs-target="#veicoli-pane" type="button" role="tab">Inventario Veicoli</button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link fw-bold"
-                    id="archivio-tab"
-                    data-bs-toggle="tab"
-                    data-bs-target="#archivio-pane"
-                    type="button"
-                    role="tab">
-                Archivio
-            </button>
+            <button class="nav-link fw-bold" id="archivio-tab" data-bs-toggle="tab" data-bs-target="#archivio-pane" type="button" role="tab">Archivio</button>
         </li>
     </ul>
-
-    
 
     <div class="tab-content" id="catalogoTabsContent">
         
@@ -55,7 +46,7 @@
                                     <tr>
                                         <th>ID</th>
                                         <th>Nome Marca</th>
-                                        <th>Stato</th>
+                                        <th>Stato (Clicca per cambiare)</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -64,11 +55,13 @@
                                         <td>{{ marca.ID_Marca }}</td>
                                         <td class="fw-bold">{{ marca.Nome }}</td>
                                         <td>
-                                            {% if marca.Attiva == 'Y' %}
-                                                <span class="badge bg-success">Attiva</span>
-                                            {% else %}
-                                                <span class="badge bg-secondary">Disattivata</span>
-                                            {% endif %}
+                                            <form action="/admin/toggle_marca/{{ marca.ID_Marca }}" method="POST" class="d-inline">
+                                                {% if marca.Attiva == 'Y' %}
+                                                    <button type="submit" class="btn btn-sm btn-success" title="Disattiva marca e archivia veicoli">Attiva</button>
+                                                {% else %}
+                                                    <button type="submit" class="btn btn-sm btn-secondary" title="Riattiva marca">Disattivata</button>
+                                                {% endif %}
+                                            </form>
                                         </td>
                                     </tr>
                                     {% else %}
@@ -85,7 +78,6 @@
         </div>
 
         <div class="tab-pane fade" id="veicoli-pane" role="tabpanel" tabindex="0">
-            
             <div class="d-flex justify-content-between mb-3 align-items-center">
                 <h5 class="mb-0">Tutti i Veicoli</h5>
                 <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalVeicolo">
@@ -132,13 +124,10 @@
                                 </td>
                                 <td class="text-end">
                                     <div class="btn-group">
-                                        <button class="btn btn-sm btn-outline-primary">
-                                            Dettagli
-                                        </button>
-
-                                        <button class="btn btn-sm btn-warning">
-                                            Archivia
-                                        </button>
+                                        <button class="btn btn-sm btn-outline-primary">Dettagli</button>
+                                        <form action="/admin/toggle_veicolo/{{ veicolo.NumeroTelaio }}" method="POST" class="d-inline">
+                                            <button type="submit" class="btn btn-sm btn-warning">Archivia</button>
+                                        </form>
                                     </div>
                                 </td>
                             </tr>
@@ -151,15 +140,12 @@
                     </table>
                 </div>
             </div>
-
         </div>
         
         <div class="tab-pane fade" id="archivio-pane" role="tabpanel" tabindex="0">
-
-    <div class="d-flex justify-content-between mb-3 align-items-center">
-        <h5 class="mb-0">Veicoli Archiviati</h5>
-    </div>
-
+            <div class="d-flex justify-content-between mb-3 align-items-center">
+                <h5 class="mb-0">Veicoli Archiviati</h5>
+            </div>
             <div class="card shadow-sm">
                 <div class="card-body p-0">
                     <table class="table table-hover table-striped mb-0">
@@ -172,7 +158,6 @@
                                 <th>Azioni</th>
                             </tr>
                         </thead>
-
                         <tbody>
                             {% for veicolo in veicoli_archiviati %}
                             <tr>
@@ -180,26 +165,21 @@
                                 <td>{{ veicolo.NumeroTelaio }}</td>
                                 <td>{{ veicolo.Modello }}</td>
                                 <td>{{ veicolo.Data_Inserimento }}</td>
-
                                 <td>
-                                    <button class="btn btn-sm btn-success">
-                                        Ripristina
-                                    </button>
+                                    <form action="/admin/toggle_veicolo/{{ veicolo.NumeroTelaio }}" method="POST" class="d-inline">
+                                        <button type="submit" class="btn btn-sm btn-success">Ripristina</button>
+                                    </form>
                                 </td>
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="5" class="text-center text-muted py-4">
-                                    Nessun veicolo archiviato.
-                                </td>
+                                <td colspan="5" class="text-center text-muted py-4">Nessun veicolo archiviato.</td>
                             </tr>
                             {% endfor %}
                         </tbody>
-
                     </table>
                 </div>
             </div>
-
         </div>
     </div>
 </div>
