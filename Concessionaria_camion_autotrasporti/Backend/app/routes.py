@@ -374,7 +374,6 @@ def dashboard_meccanico():
         in_corso = [c for c in tutti_i_compiti if c.get('Stato') == 'In corso']
         finiti = [c for c in tutti_i_compiti if c.get('Stato') == 'Finito']
 
-        # 2. ECCO LA QUERY PER LE PERFORMANCE:
         # Andiamo a cercare il numero di interventi totali salvato nella tabella MECCANICO
         res_mecc = supabase.table('MECCANICO').select('Totale_interventi').eq('ID_Persona', id_meccanico).execute()
         
@@ -797,7 +796,7 @@ def approva_usato():
         flash(f"Impossibile caricare l'elenco delle perizie: {str(e)}", "danger")
         return redirect('/dashboard_admin')
 
-# --- AREA CLIENTE: IL MIO GARAGE PERFECT FIX ---
+# --- AREA CLIENTE: IL MIO GARAGE ---
 @main.route('/mie_auto')
 @ruolo_richiesto(1)
 def mie_auto():
@@ -1148,10 +1147,6 @@ def transaction_wizard():
                     "Prezzo_Riscatto": prezzo * 0.40
                 }).execute()
 
-<<<<<<< HEAD
-            # ---> MANCAVANO QUESTE TRE RIGHE IMPORTANTISSIME! <---
-            return redirect('/salespearson')
-=======
             # 6. AGGIORNAMENTO VEICOLO (Riservato/Archiviato)
             supabase.table('VEICOLO').update({
                 'ID_Contratto': id_contratto,
@@ -1159,8 +1154,7 @@ def transaction_wizard():
             }).eq('NumeroTelaio', numero_telaio).execute()
 
             flash(f"Successo! {tipo_contratto} registrato e auto bloccata per il cliente.", "success")
-            return redirect('/salesperson')
->>>>>>> a4b2aeb683cfb44ad2583ce6b9fad46cbf2d93f5
+            return redirect('/salespearson')
 
         except Exception as e:
             print(f"ERRORE WIZARD TRANSAZIONE: {e}")
