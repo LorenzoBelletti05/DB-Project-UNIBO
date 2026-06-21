@@ -1148,10 +1148,6 @@ def transaction_wizard():
                     "Prezzo_Riscatto": prezzo * 0.40
                 }).execute()
 
-<<<<<<< HEAD
-            # ---> MANCAVANO QUESTE TRE RIGHE IMPORTANTISSIME! <---
-            return redirect('/salespearson')
-=======
             # 6. AGGIORNAMENTO VEICOLO (Riservato/Archiviato)
             supabase.table('VEICOLO').update({
                 'ID_Contratto': id_contratto,
@@ -1160,7 +1156,6 @@ def transaction_wizard():
 
             flash(f"Successo! {tipo_contratto} registrato e auto bloccata per il cliente.", "success")
             return redirect('/salesperson')
->>>>>>> a4b2aeb683cfb44ad2583ce6b9fad46cbf2d93f5
 
         except Exception as e:
             print(f"ERRORE WIZARD TRANSAZIONE: {e}")
