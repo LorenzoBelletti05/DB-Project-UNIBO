@@ -6,7 +6,7 @@
         <h2 class="h3 text-primary mb-0"><i class="bi bi-magic"></i> Wizard di Transazione</h2>
         <p class="text-muted mb-0 small">Segui i 3 passaggi per generare un nuovo contratto e bloccare il veicolo.</p>
     </div>
-    <a href="/salesperson" class="btn btn-outline-secondary btn-sm">Annulla</a>
+    <a href="/salespearson" class="btn btn-outline-secondary btn-sm">Annulla</a>
 </div>
 
 <div class="card shadow-lg border-0 rounded-4 overflow-hidden mb-5">
@@ -48,7 +48,7 @@
                                 <option value="{{ c.ID_Persona }}">{{ c.Nome }} {{ c.Cognome }} ({{ c.CF }})</option>
                                 {% endfor %}
                             </select>
-                            <label for="clienteSelect" class="fw-bold text-primary">👤 Cliente Acquirente</label>
+                            <label for="clienteSelect" class="fw-bold text-primary">Cliente Acquirente</label>
                         </div>
                     </div>
 
@@ -60,7 +60,7 @@
                                 <option value="{{ v.NumeroTelaio }}">{{ mappa_marche.get(v.ID_Marca, '') }} {{ v.Modello }} - €{{ v.Prezzo_Base }}</option>
                                 {% endfor %}
                             </select>
-                            <label for="vehicleSelect" class="fw-bold text-primary">🚗 Veicolo da bloccare</label>
+                            <label for="vehicleSelect" class="fw-bold text-primary">Veicolo da bloccare</label>
                         </div>
                     </div>
                 </div>
@@ -163,7 +163,7 @@
                     <div class="col-md-3 radio-card">
                         <input type="radio" class="d-none" name="contract_type" id="typeSale" value="Vendita" checked>
                         <label class="w-100 p-4 rounded-4 text-center d-flex flex-column align-items-center justify-content-center bg-white shadow-sm" for="typeSale">
-                            <span class="display-5 mb-2">🛍️</span>
+                            <span class="display-5 mb-2"></span>
                             <span class="fw-bold fs-5 text-dark">Vendita</span>
                             <span class="text-muted small mt-1">Acquisto immediato</span>
                         </label>
@@ -171,7 +171,7 @@
                     <div class="col-md-3 radio-card">
                         <input type="radio" class="d-none" name="contract_type" id="typeRental" value="Noleggio">
                         <label class="w-100 p-4 rounded-4 text-center d-flex flex-column align-items-center justify-content-center bg-white shadow-sm" for="typeRental">
-                            <span class="display-5 mb-2">⏳</span>
+                            <span class="display-5 mb-2"></span>
                             <span class="fw-bold fs-5 text-dark">Noleggio</span>
                             <span class="text-muted small mt-1">Breve/Lungo termine</span>
                         </label>
@@ -179,7 +179,7 @@
                     <div class="col-md-3 radio-card">
                         <input type="radio" class="d-none" name="contract_type" id="typeFinancing" value="Finanziamento">
                         <label class="w-100 p-4 rounded-4 text-center d-flex flex-column align-items-center justify-content-center bg-white shadow-sm" for="typeFinancing">
-                            <span class="display-5 mb-2">🏦</span>
+                            <span class="display-5 mb-2"></span>
                             <span class="fw-bold fs-5 text-dark">Rateale</span>
                             <span class="text-muted small mt-1">Acquisto finanziato</span>
                         </label>
@@ -187,7 +187,7 @@
                     <div class="col-md-3 radio-card">
                         <input type="radio" class="d-none" name="contract_type" id="typeLeasing" value="Leasing">
                         <label class="w-100 p-4 rounded-4 text-center d-flex flex-column align-items-center justify-content-center bg-white shadow-sm" for="typeLeasing">
-                            <span class="display-5 mb-2">📄</span>
+                            <span class="display-5 mb-2"></span>
                             <span class="fw-bold fs-5 text-dark">Leasing</span>
                             <span class="text-muted small mt-1">Per Partita IVA</span>
                         </label>
@@ -195,8 +195,8 @@
                 </div>
 
                 <div class="d-flex justify-content-between mt-5">
-                    <button type="button" class="btn btn-outline-secondary btn-lg px-4 fw-bold rounded-pill" onclick="prevStep(2)">⬅ Indietro</button>
-                    <button type="button" class="btn btn-primary btn-lg px-5 fw-bold shadow-sm rounded-pill" onclick="nextStep(2)">Continua ➔</button>
+                    <button type="button" class="btn btn-outline-secondary btn-lg px-4 fw-bold rounded-pill" onclick="prevStep(2)">Indietro</button>
+                    <button type="button" class="btn btn-primary btn-lg px-5 fw-bold shadow-sm rounded-pill" onclick="nextStep(2)">Continua</button>
                 </div>
             </div>
 
@@ -223,9 +223,9 @@
                             <div class="col-md-12">
                                 <label class="form-label text-muted text-uppercase small fw-bold">Metodo di Pagamento</label>
                                 <select name="payment_method" class="form-select form-select-lg bg-light border-0" required>
-                                    <option value="Bonifico">💳 Bonifico Bancario</option>
-                                    <option value="Carta di Credito">💳 Carta di Credito</option>
-                                    <option value="Assegno">📄 Assegno Circolare</option>
+                                    <option value="Bonifico">Bonifico Bancario</option>
+                                    <option value="Carta di Credito">Carta di Credito</option>
+                                    <option value="Assegno">Assegno Circolare</option>
                                 </select>
                             </div>
                         </div>
@@ -233,7 +233,7 @@
                 </div>
 
                 <div class="d-flex justify-content-between mt-5">
-                    <button type="button" class="btn btn-outline-secondary btn-lg px-4 fw-bold rounded-pill" onclick="prevStep(3)">⬅ Indietro</button>
+                    <button type="button" class="btn btn-outline-secondary btn-lg px-4 fw-bold rounded-pill" onclick="prevStep(3)">Indietro</button>
                     <button type="submit" class="btn btn-success btn-lg px-5 fw-bold shadow rounded-pill" id="submitBtn">
                         <i class="bi bi-check-circle"></i> Conferma e Genera Contratto
                     </button>

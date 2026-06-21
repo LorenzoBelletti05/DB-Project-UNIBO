@@ -6,24 +6,24 @@
     <aside class="col-md-3 mb-4">
         <div class="card shadow-sm border-0">
             <div class="card-header bg-primary text-white fw-bold">
-                🔍 Filter Vehicles
+                Filtro Veicoli
             </div>
             <div class="card-body bg-light">
                 <form id="filter-form" method="GET" action="/catalog">
                     
                     <div class="mb-3">
-                        <label class="form-label fw-bold text-dark">Condition</label>
+                        <label class="form-label fw-bold text-dark">Condizione</label>
                         <select name="condition" class="form-select border-primary">
-                            <option value="">All</option>
-                            <option value="New">New</option>
-                            <option value="Used">Used</option>
+                            <option value="">Tutti</option>
+                            <option value="New">Nuovo</option>
+                            <option value="Used">Usato</option>
                         </select>
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label fw-bold text-dark">Brand</label>
                         <select name="brand" class="form-select">
-                            <option value="">All Brands</option>
+                            <option value="">Tutti i Brand</option>
                             {% for brand in brands %}
                             <option value="{{ brand.Nome }}">{{ brand.Nome }}</option>
                             {% endfor %}
@@ -31,16 +31,16 @@
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label fw-bold text-dark">Model</label>
+                        <label class="form-label fw-bold text-dark">Modello</label>
                         <input type="text" name="model" class="form-control" placeholder="e.g. FH16, Stralis...">
                     </div>
 
                     <div class="mb-4">
-                        <label class="form-label fw-bold text-dark">Max Price (€)</label>
+                        <label class="form-label fw-bold text-dark">Prezzo Massimo (€)</label>
                         <input type="number" name="max_price" class="form-control" placeholder="e.g. 80000">
                     </div>
 
-                    <button type="submit" class="btn btn-primary w-100 fw-bold">Apply Filters</button>
+                    <button type="submit" class="btn btn-primary w-100 fw-bold">Applica Filtri</button>
                     <a href="/catalog" class="btn btn-outline-secondary w-100 mt-2">Reset</a>
                 </form>
             </div>
@@ -49,8 +49,8 @@
 
     <main class="col-md-9">
         <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
-            <h3 class="h4 text-primary mb-0">Public Catalog</h3>
-            <span class="badge bg-secondary fs-6">{{ vehicles|length }} vehicles found</span>
+            <h3 class="h4 text-primary mb-0">Catalogo Pubblico</h3>
+            <span class="badge bg-secondary fs-6">{{ vehicles|length }} veicolo trovato</span>
         </div>
 
         <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
@@ -62,8 +62,8 @@
                     <div class="card-body">
                         <h5 class="card-title fw-bold text-uppercase">{{ mappa_marche.get(vehicle.ID_Marca, '') }} {{ vehicle.Modello }}</h5>
                         <p class="card-text text-muted mb-2 small">
-                            📅 Year: {{ vehicle.Anno_Produzione }} <br>
-                            {% if vehicle.Stato_Disponibilita == 'U' %} 🛣️ Mileage: {{ vehicle.Kilometraggio }} km {% endif %}
+                            Anno: {{ vehicle.Anno_Produzione }} <br>
+                            {% if vehicle.Stato_Disponibilita == 'U' %} Kilometraggio: {{ vehicle.Kilometraggio }} km {% endif %}
                         </p>
                         <h4 class="text-success mb-3">€ {{ vehicle.Prezzo_Base }}</h4>
                         
@@ -75,14 +75,14 @@
                     
                     <div class="card-footer bg-white border-top-0 d-flex justify-content-between pb-3">
                         <button class="btn btn-sm btn-outline-primary fw-bold" data-id="{{ vehicle.NumeroTelaio }}" data-name="{{ mappa_marche.get(vehicle.ID_Marca, '') }} {{ vehicle.Modello }}" onclick="showOptionals(this.getAttribute('data-id'), this.getAttribute('data-name'))">⚙️ Optionals</button>
-                        <button class="btn btn-sm btn-primary">Details</button>
+                        <button class="btn btn-sm btn-primary">Dettagli</button>
                     </div>
                 </div>
             </div>
             {% else %}
             <div class="col-12 text-center py-5">
-                <h4 class="text-muted mb-3">No vehicles found 🚛</h4>
-                <p>Try modifying your filters to find what you are looking for.</p>
+                <h4 class="text-muted mb-3">Nessun veicolo trovato</h4>
+                <p>Prova a modificare i tuoi filtri per trovare quello che stai cercando</p>
             </div>
             {% endfor %}
         </div>
@@ -93,18 +93,18 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow">
             <div class="modal-header bg-dark text-white">
-                <h5 class="modal-title" id="optionalsModalTitle">Vehicle Optionals</h5>
+                <h5 class="modal-title" id="optionalsModalTitle">Optional Veicoli</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body bg-light" id="optionalsModalBody">
                 <div class="text-center py-3">
                     <div class="spinner-border text-primary" role="status"></div>
-                    <p class="mt-2 text-muted">Loading optionals...</p>
+                    <p class="mt-2 text-muted">Caricamento Optional...</p>
                 </div>
             </div>
             <div class="modal-footer d-flex justify-content-between">
                 <h5 class="mb-0 text-success" id="optionalsTotalBox">Extra: € 0</h5>
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
             </div>
         </div>
     </div>
