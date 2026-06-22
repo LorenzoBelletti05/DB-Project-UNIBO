@@ -553,97 +553,125 @@ def prenota_intervento():
 @main.route('/proponi_usato', methods=['GET', 'POST'])
 @ruolo_richiesto(1)
 def proponi_usato():
-    id_cliente = session.get('user_id')
-
     if request.method == 'POST':
         try:
-            tipo_inserimento = request.form.get('tipo_inserimento') # 'esistente' o 'nuovo'
-            data_inizio = request.form.get('data')
-
-            if tipo_inserimento == 'esistente':
-                # IL CLIENTE HA SELEZIONATO UN VEICOLO DAL GARAGE
-                telaio = request.form.get('telaio_esistente')
+            tipo_inserimento = request.form.get('tipo_inserimento')
+            
+            if tipo_inserimento == 'nuovo':
+                telaio = request.form.get('numero_telaio').upper()
+                targa = request.form.get('targa').upper()
+                nome_marca = request.form.get('marca').strip().capitalize()
                 
-                # Recuperiamo la targa dal DB per inserirla nella valutazione
-                res_v = supabase.table('VEICOLO').select('Targa').eq('NumeroTelaio', telaio).single().execute()
-                targa = res_v.data['Targa'] if res_v.data else "N/D"
-
-            else:
-                # IL CLIENTE INSERISCE UN NUOVO VEICOLO (TUTTI I CAMPI)
-                telaio = request.form.get('numero_telaio').upper()[:17]
-                targa = request.form.get('targa').upper()[:20]
-                
-                # Gestione Marca dinamica
-                nome_marca_inserita = request.form.get('marca').strip().capitalize()
-                res_marca = supabase.table('MARCA').select('ID_Marca').eq('Nome', nome_marca_inserita).execute()
+                res_marca = supabase.table('MARCA').select('ID_Marca').eq('Nome', nome_marca).execute()
                 if res_marca.data:
-                    id_marca_corretta = res_marca.data[0]['ID_Marca']
+                    id_marca = res_marca.data[0]['ID_Marca']
                 else:
-                    res_nuova = supabase.table('MARCA').insert({"Nome": nome_marca_inserita, "Attiva": "Y"}).execute()
-                    id_marca_corretta = res_nuova.data[0]['ID_Marca']
+                    res_nuova = supabase.table('MARCA').insert({"Nome": nome_marca, "Attiva": "Y"}).execute()
+                    id_marca = res_nuova.data[0]['ID_Marca']
 
-                # Creazione Veicolo Massiccia
                 nuovo_veicolo = {
                     "NumeroTelaio": telaio,
                     "Targa": targa,
                     "Modello": request.form.get('modello')[:15],
                     "Anno_Produzione": int(request.form.get('anno')),
-                    "Data_Arrivo_Concessionaria": data_inizio, # Usiamo la data di oggi per il vincolo NOT NULL
-                    "Classe_Inquinamento": request.form.get('classe_inquinamento')[:6],
-                    "Configurazione_Assi": request.form.get('configurazione_assi')[:3],
-                    "Numero_Assi": int(request.form.get('numero_assi')),
-                    "Tipologia_Motrice": request.form.get('tipologia_motrice')[:15],
-                    "Peso": float(request.form.get('peso')),
-                    "Descrizione": request.form.get('descrizione_veicolo', 'N/A')[:100],
-                    "Prezzo_Base": 0.0, # Prezzo fittizio iniziale, lo deciderà il meccanico
                     "Data_Immatricolazione": request.form.get('data_immatricolazione'),
+                    "Kilometraggio": int(request.form.get('km')),
                     "Potenza_CV": int(request.form.get('potenza_cv')),
-                    "Stato_Disponibilita": "U", # U = Usato
-                    "ID_Marca": id_marca_corretta,
-                    "Kilometraggio": int(request.form.get('km'))
+                    "Peso": float(request.form.get('peso')),
+                    "Tipologia_Motrice": request.form.get('tipologia_motrice'),
+                    "Classe_Inquinamento": request.form.get('classe_inquinamento'),
+                    "Configurazione_Assi": request.form.get('configurazione_assi'),
+                    "Numero_Assi": int(request.form.get('numero_assi')),
+                    "Descrizione": request.form.get('descrizione_veicolo'),
+                    "Prezzo_Base": float(request.form.get('prezzo')),
+                    "Stato_Disponibilita": 'U',
+                    "ID_Marca": id_marca
                 }
                 supabase.table('VEICOLO').insert(nuovo_veicolo).execute()
+            else:
+                telaio = request.form.get('telaio_esistente')
+                res_veicolo = supabase.table('VEICOLO').select('Targa').eq('NumeroTelaio', telaio).execute()
+                targa = res_veicolo.data[0]['Targa'] if res_veicolo.data else ""
 
-            # PASSO FINALE COMUNE: Creazione della pratica di valutazione
             nuova_valutazione = {
                 "NumeroTelaio": telaio,
                 "Targa": targa,
-                "Data_Inizio": data_inizio,
-                "ID_Persona": id_cliente
+                "Data_Inizio": request.form.get('data'),
+                "ID_Persona": session.get('user_id')
             }
             supabase.table('VALUTAZIONE_USATO').insert(nuova_valutazione).execute()
-            
-            flash("Proposta dell'usato inviata con successo! I nostri meccanici la valuteranno presto.", "success")
+            flash("Proposta dell'usato inviata con successo!", "success")
             return redirect('/area_cliente')
-            
+
         except Exception as e:
-            print(f"🔴 ERRORE FATALE DB VALUTAZIONE: {str(e)}")
-            flash(f"Impossibile procedere. Errore: {str(e)}", "danger")
+            flash(f"Errore DB: {str(e)}", "danger")
             return redirect('/proponi_usato')
 
-    # LATO GET: Carichiamo il "Garage Virtuale" per riempire la tendina
     try:
+        id_cliente = session.get('user_id')
         res_pren = supabase.table('PRENOTAZIONE').select('NumeroTelaio').eq('ID_Persona', id_cliente).execute()
         res_val = supabase.table('VALUTAZIONE_USATO').select('NumeroTelaio').eq('ID_Persona', id_cliente).execute()
         
         tutti_i_telai = list(set([r['NumeroTelaio'] for r in res_pren.data] + [r['NumeroTelaio'] for r in res_val.data]))
+        
         auto_cliente = []
-
         if tutti_i_telai:
             res_veicoli = supabase.table('VEICOLO').select('*').in_('NumeroTelaio', tutti_i_telai).execute()
             auto_cliente = res_veicoli.data
             
-            # Recupero nomi marche
             for auto in auto_cliente:
-                if auto.get('ID_Marca'):
-                    res_m = supabase.table('MARCA').select('Nome').eq('ID_Marca', auto['ID_Marca']).execute()
-                    auto['Marca_Nome'] = res_m.data[0]['Nome'] if res_m.data else "N/D"
-
+                id_marca = auto.get('ID_Marca')
+                auto['Marca_Nome'] = "N/D"
+                if id_marca:
+                    res_marca = supabase.table('MARCA').select('Nome').eq('ID_Marca', id_marca).execute()
+                    if res_marca.data:
+                        auto['Marca_Nome'] = res_marca.data[0]['Nome']
     except Exception as e:
         auto_cliente = []
 
-    return render_template('prenotazioni/proponi_usato.html', auto_cliente=auto_cliente)
+    return render_template('proponi_usato.html', auto_cliente=auto_cliente)
 
+@main.route('/prenota', methods=['GET', 'POST'])
+@ruolo_richiesto(1)
+def prenota_intervento():
+    if request.method == 'POST':
+        try:
+            targa = request.form.get('targa').upper()
+            telaio = request.form.get('telaio').upper()
+            id_cliente = session.get('user_id')
+
+            res_veicolo = supabase.table('VEICOLO').select('NumeroTelaio').eq('NumeroTelaio', telaio).execute()
+
+            if not res_veicolo.data:
+                nuovo_veicolo_generico = {
+                    "NumeroTelaio": telaio,
+                    "Targa": targa,
+                    "Modello": "Auto Cliente",
+                    "Kilometraggio": 0,
+                    "Prezzo_Base": 0.0,
+                    "ID_Marca": 1
+                }
+                supabase.table('VEICOLO').insert(nuovo_veicolo_generico).execute()
+
+            nuova_prenotazione = {
+                "ID_Persona": id_cliente,
+                "Targa": targa,
+                "NumeroTelaio": telaio,
+                "Data_Prenotazione": request.form.get('data'),
+                "Ora_Incontro": request.form.get('ora'),
+                "Nota_Cliente": request.form.get('note'),
+                "ID_Sede": int(request.form.get('sede'))
+            }
+
+            supabase.table('PRENOTAZIONE').insert(nuova_prenotazione).execute()
+            flash("Richiesta inviata con successo!", "success")
+            return redirect('/area_cliente')
+
+        except Exception as e:
+            flash(f"Errore DB: {str(e)}", "danger")
+            return redirect('/prenota')
+
+    return render_template('prenotazioni/prenota.html')
 # --- WIZARD USATO FASE 2: PERIZIA TECNICA (LATO MECCANICO) ---
 @main.route('/meccanico/valutazioni', methods=['GET', 'POST'])
 @ruolo_richiesto(2)
