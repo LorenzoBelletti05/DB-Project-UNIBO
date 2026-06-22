@@ -3,7 +3,7 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
     <div>
-        <h2 class="h3 text-primary mb-0"></i> Creazione di un contratto</h2>
+        <h2 class="h3 text-primary mb-0">Creazione di un contratto</h2>
         <p class="text-muted mb-0 small">Segui i passaggi per generare un nuovo contratto e bloccare il veicolo.</p>
     </div>
     <a href="/salespearson" class="btn btn-outline-secondary btn-sm">Indietro</a>
@@ -64,94 +64,8 @@
                         </div>
                     </div>
                 </div>
-
-                <div class="card-body p-4">
-                    <form id="transactionForm" method="POST" action="/transaction_wizard">
-
-                        <div id="step1" class="wizard-step">
-                            <h5 class="mb-3">Seleziona Cliente e Veicolo</h5>
-                            
-                            <div class="mb-3">
-                                <label class="form-label text-dark fw-bold">Cliente Acquirente</label>
-                                <select name="id_cliente" class="form-select border-primary" id="clienteSelect" required>
-                                    <option value="">Scegli un cliente...</option>
-                                    {% for c in clienti %}
-                                    <option value="{{ c.ID_Persona }}">{{ c.Nome }} {{ c.Cognome }} ({{ c.CF }})</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-
-                            <div class="mb-3">
-                                <label class="form-label text-dark fw-bold">Veicoli Disponibili</label>
-                                <select name="numero_telaio" class="form-select border-primary" id="vehicleSelect" required>
-                                    <option value="">Scegli un veicolo...</option>
-                                    {% for v in veicoli %}
-                                    <option value="{{ v.NumeroTelaio }}">{{ mappa_marche.get(v.ID_Marca, '') }} {{ v.Modello }} - €{{ v.Prezzo_Base }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div class="text-end mt-4">
-                                <button type="button" class="btn btn-primary px-4 fw-bold" onclick="nextStep(1)">Avanti ➔</button>
-                            </div>
-                        </div>
-
-                        <div id="step2" class="wizard-step d-none">
-                            <h5 class="mb-3">Seleziona Tipo di Contratto</h5>
-                            <div class="row g-3 mb-3">
-                                <div class="col-md-3">
-                                    <input type="radio" class="btn-check" name="contract_type" id="typeSale" value="Vendita" checked>
-                                    <label class="btn btn-outline-primary w-100 p-3 fw-bold" for="typeSale">Vendita</label>
-                                </div>
-                                <div class="col-md-3">
-                                    <input type="radio" class="btn-check" name="contract_type" id="typeRental" value="Noleggio">
-                                    <label class="btn btn-outline-primary w-100 p-3 fw-bold" for="typeRental">Noleggio</label>
-                                </div>
-                                <div class="col-md-3">
-                                    <input type="radio" class="btn-check" name="contract_type" id="typeFinancing" value="Finanziamento">
-                                    <label class="btn btn-outline-primary w-100 p-3 fw-bold" for="typeFinancing">Finanziamento</label>
-                                </div>
-                                <div class="col-md-3">
-                                    <input type="radio" class="btn-check" name="contract_type" id="typeLeasing" value="Leasing">
-                                    <label class="btn btn-outline-primary w-100 p-3 fw-bold" for="typeLeasing">Leasing</label>
-                                </div>
-                            </div>
-                            <div class="d-flex justify-content-between mt-4">
-                                <button type="button" class="btn btn-outline-secondary px-4 fw-bold" onclick="prevStep(2)">Indietro</button>
-                                <button type="button" class="btn btn-primary px-4 fw-bold" onclick="nextStep(2)">Avanti</button>
-                            </div>
-                        </div>
-
-                        <div id="step3" class="wizard-step d-none">
-                            <h5 class="mb-3">Date & Pagamento</h5>
-
-                            <div class="row mb-3">
-                                <div class="col-md-6">
-                                    <label class="form-label text-dark fw-bold">Data Inizio Decorrenza</label>
-                                    <input type="date" name="start_date" id="startDate" class="form-control" required onchange="validateDates()">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label text-dark fw-bold">Data Fine (Noleggio/Leasing)</label>
-                                    <input type="date" name="end_date" id="endDate" class="form-control" onchange="validateDates()">
-                                    <small id="dateError" class="text-danger d-none fw-bold mt-1">La data di fine non può precedere l'inizio!</small>
-                                </div>
-                            </div>
-
-                            <div class="mb-4 mt-3">
-                                <label class="form-label text-dark fw-bold">Metodo di Pagamento</label>
-                                <select name="payment_method" class="form-select border-primary" required>
-                                    <option value="Bonifico">Bonifico Bancario</option>
-                                    <option value="Carta di Credito">Carta di Credito</option>
-                                    <option value="Assegno">Assegno</option>
-                                </select>
-                            </div>
-
-                            <div class="d-flex justify-content-between mt-4">
-                                <button type="button" class="btn btn-outline-secondary px-4 fw-bold" onclick="prevStep(3)">Indietro</button>
-                                <button type="submit" class="btn btn-success px-4 fw-bold" id="submitBtn">Genera Contratto</button>
-                            </div>
-                        </div>
-
-                    </form>
+                <div class="text-end mt-5">
+                    <button type="button" class="btn btn-primary btn-lg px-5 fw-bold shadow-sm rounded-pill" onclick="nextStep(1)">Continua</button>
                 </div>
             </div>
 
@@ -213,7 +127,7 @@
                             <div class="col-md-6">
                                 <label class="form-label text-muted text-uppercase small fw-bold">Data Fine <span class="text-lowercase fw-normal">(se previsto)</span></label>
                                 <input type="date" name="end_date" id="endDate" class="form-control form-control-lg bg-light border-0" onchange="validateDates()">
-                                <small id="dateError" class="text-danger d-none fw-bold mt-2"><i class="bi bi-exclamation-triangle"></i> La data di fine non può precedere l'inizio!</small>
+                                <small id="dateError" class="text-danger d-none fw-bold mt-2">La data di fine non può precedere l'inizio!</small>
                             </div>
                         </div>
 
@@ -235,7 +149,7 @@
                 <div class="d-flex justify-content-between mt-5">
                     <button type="button" class="btn btn-outline-secondary btn-lg px-4 fw-bold rounded-pill" onclick="prevStep(3)">Indietro</button>
                     <button type="submit" class="btn btn-success btn-lg px-5 fw-bold shadow rounded-pill" id="submitBtn">
-                        <i class="bi bi-check-circle"></i> Conferma e Genera Contratto
+                        Conferma e Genera Contratto
                     </button>
                 </div>
             </div>
@@ -245,7 +159,6 @@
 </div>
 
 <style>
-/* Animazioni e Transizioni Base */
 .transition-all { transition: all 0.4s ease; }
 .fade-in { animation: fadeIn 0.5s ease-in-out; }
 @keyframes fadeIn {
@@ -253,7 +166,6 @@
     to { opacity: 1; transform: translateY(0); }
 }
 
-/* Stile per le Radio Cards dello Step 2 */
 .radio-card input:checked + label {
     border: 2px solid #0d6efd !important;
     background-color: #f8faff !important;
@@ -273,13 +185,11 @@
 
 <script>
 function nextStep(currentStep) {
-    // Validazione Step 1
     if (currentStep === 1 && (!document.getElementById('vehicleSelect').value || !document.getElementById('clienteSelect').value)) {
-        alert('⚠️ Attenzione: Devi selezionare sia il cliente che il veicolo per proseguire.');
+        alert('Attenzione: Devi selezionare sia il cliente che il veicolo per proseguire.');
         return;
     }
     
-    // Cambia schede
     document.getElementById(`step${currentStep}`).classList.add('d-none');
     document.getElementById(`step${currentStep + 1}`).classList.remove('d-none');
     updateProgress(currentStep + 1);
@@ -292,7 +202,6 @@ function prevStep(currentStep) {
 }
 
 function updateProgress(step) {
-    // Aggiorna la barra (Step 1=0%, Step 2=50%, Step 3=100%)
     const percentages = {1: '0%', 2: '50%', 3: '100%'};
     document.getElementById('wizard-progress').style.width = percentages[step];
 
@@ -301,17 +210,14 @@ function updateProgress(step) {
         const text = document.getElementById(`text-step${i}`);
 
         if (i < step) {
-            // Step Completati (Verdi con spunta)
             icon.className = 'step-icon bg-success text-white border-0 rounded-circle d-inline-flex align-items-center justify-content-center fw-bold shadow transition-all';
-            icon.innerHTML = '✓';
+            icon.innerHTML = 'v';
             text.className = 'mt-2 fw-bold text-success transition-all';
         } else if (i === step) {
-            // Step Corrente (Blu)
             icon.className = 'step-icon bg-primary text-white border-0 rounded-circle d-inline-flex align-items-center justify-content-center fw-bold shadow transition-all';
             icon.innerHTML = i;
             text.className = 'mt-2 fw-bold text-primary transition-all';
         } else {
-            // Step Futuri (Grigi)
             icon.className = 'step-icon bg-white text-muted border border-2 rounded-circle d-inline-flex align-items-center justify-content-center fw-bold transition-all';
             icon.innerHTML = i;
             text.className = 'mt-2 fw-bold text-muted transition-all';
@@ -334,7 +240,6 @@ function validateDates() {
     }
 }
 
-// Imposta la data di oggi come default all'apertura del form
 document.addEventListener('DOMContentLoaded', function() {
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('startDate').value = today;
