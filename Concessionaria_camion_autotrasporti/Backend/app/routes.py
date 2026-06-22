@@ -503,7 +503,7 @@ def proponi_usato():
             }
             supabase.table('VALUTAZIONE_USATO').insert(nuova_valutazione).execute()
             flash("Proposta dell'usato inviata con successo!", "success")
-            return redirect('/cliente_dashboard') 
+            return redirect('/area_cliente')
 
         except Exception as e:
             print(f"ERRORE PROPOSTA USATO: {e}")
@@ -595,7 +595,7 @@ def prenota_intervento():
 
             supabase.table('PRENOTAZIONE').insert(nuova_prenotazione).execute()
             flash("Richiesta inviata con successo!", "success")
-            return redirect('/dashboard.html') 
+            return redirect('/area_cliente')
 
         except Exception as e:
             print(f"ERRORE PRENOTAZIONE: {e}")
