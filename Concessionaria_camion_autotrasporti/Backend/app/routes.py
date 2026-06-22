@@ -524,7 +524,7 @@ def proponi_usato():
     except Exception as e:
         auto_cliente = []
 
-    return render_template('proponi_usato.html', auto_cliente=auto_cliente)
+    return render_template('prenotazioni/proponi_usato.html', auto_cliente=auto_cliente)
 
 @main.route('/prenota', methods=['GET', 'POST'])
 @ruolo_richiesto(1)
