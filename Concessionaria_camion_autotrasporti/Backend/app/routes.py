@@ -522,7 +522,7 @@ def proponi_usato():
         if tutti_i_telai:
             res_veicoli = supabase.table('VEICOLO').select('*').in_('NumeroTelaio', tutti_i_telai).execute()
             auto_cliente = res_veicoli.data
-            
+
             for auto in auto_cliente:
                 id_marca = auto.get('ID_Marca')
                 auto['Marca_Nome'] = "N/D"
