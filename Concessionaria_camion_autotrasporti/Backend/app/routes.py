@@ -44,7 +44,7 @@ def login():
                 elif utente['Ruolo'] == 3:
                     return redirect('/salespearson')
                 elif utente['Ruolo'] == 2:
-                    return redirect('/dashboard_meccanico')    
+                    return redirect('/dashboard_mechanic')    
                 elif utente['Ruolo'] == 1:
                     return redirect('/area_cliente')
                 else:
@@ -108,14 +108,14 @@ def home():
     elif session['ruolo'] == 3:                
         return redirect('/salespearson')         
     elif session['ruolo'] == 2:
-        return redirect('/dashboard_meccanico')
+        return redirect('/dashboard_mechanic')
     elif session['ruolo'] == 1: 
         return redirect('/area_cliente')        
         
     return f"Benvenuto {session.get('nome', '')}! Il tuo ruolo ({session['ruolo']}) non ha ancora una home dedicata."
 
 # --- ROTTA DASHBOARD AMMINISTRATORE ---
-@main.route('/dashboard_admin')
+@main.route('/admin_dashboard')
 @ruolo_richiesto(4) 
 def dashboard_admin():
     try:
@@ -362,9 +362,9 @@ def gestione_catalogo():
                            lista_optional_db=lista_optional_db)
 
 # --- ROTTA DASHBOARD MECCANICO (KANBAN BOARD) ---
-@main.route('/dashboard_meccanico')
+@main.route('/dashboard_mechanic')
 @ruolo_richiesto(2)
-def dashboard_meccanico():
+def dashboard_mechanic():
     try:
         id_meccanico = session.get('user_id')
         
@@ -388,7 +388,7 @@ def dashboard_meccanico():
             totale_storico = 0
 
         # 3. Inviamo tutto all'HTML (incluso il totale_storico)
-        return render_template('meccanico/dashboard_meccanico.html', 
+        return render_template('mechanic/dashboard_mechanic.html', 
                                da_fare=da_fare, 
                                in_corso=in_corso, 
                                finiti=finiti, 
@@ -429,7 +429,7 @@ def pulisci_completati():
         print(f"ERRORE PULIZIA COMPITI: {str(e)}")
         flash("Errore durante l'archiviazione dei compiti.", "danger")
         
-    return redirect('/dashboard_meccanico')
+    return redirect('/dashboard_mechanic')
 
 # --- ROTTA PER AGGIORNARE LO STATO DEL COMPITO ---
 @main.route('/aggiorna_compito/<int:id_compito>', methods=['POST'])
@@ -442,12 +442,12 @@ def aggiorna_compito(id_compito):
     except Exception as e:
         print(f"ERRORE AGGIORNAMENTO STATO: {str(e)}")
         flash("Si è verificato un errore durante l'aggiornamento.", "danger")
-    return redirect('/dashboard_meccanico')
+    return redirect('/dashboard_mechanic')
 
 # --- WIZARD USATO FASE 1: PROPOSTA CLIENTE (LATO CLIENTE) ---
-@main.route('/proponi_usato', methods=['GET', 'POST'])
+@main.route('/trade_in', methods=['GET', 'POST'])
 @ruolo_richiesto(1)
-def proponi_usato():
+def trade_in():
     if request.method == 'POST':
         try:
             tipo_inserimento = request.form.get('tipo_inserimento')
@@ -508,7 +508,7 @@ def proponi_usato():
         except Exception as e:
             print(f"ERRORE PROPOSTA USATO: {e}")
             flash(f"Errore DB: {str(e)}", "danger")
-            return redirect('/proponi_usato')
+            return redirect('/trade_in')
 
     # FASE GET: Caricamento auto esistenti del cliente
     try:
@@ -534,10 +534,10 @@ def proponi_usato():
         auto_cliente = []
 
     # <-- MODIFICATO: ora punta alla cartella giusta
-    return render_template('prenotazioni/proponi_usato.html', auto_cliente=auto_cliente)
+    return render_template('reservations/trade_in.html', auto_cliente=auto_cliente)
 
 # --- PRENOTAZIONE OFFICINA ---
-@main.route('/prenota', methods=['GET', 'POST'])
+@main.route('/reserve', methods=['GET', 'POST'])
 @ruolo_richiesto(1)
 def prenota_intervento():
     if request.method == 'POST':
@@ -600,7 +600,7 @@ def prenota_intervento():
         except Exception as e:
             print(f"ERRORE PRENOTAZIONE: {e}")
             flash(f"Errore DB: {str(e)}", "danger")
-            return redirect('/prenota')
+            return redirect('/reserve')
 
     # FASE GET: Caricamento auto e sedi
     try:
@@ -630,9 +630,9 @@ def prenota_intervento():
         sedi = []
 
     # <-- MODIFICATO: ora punta alla cartella giusta e passa le sedi
-    return render_template('prenotazioni/prenota.html', auto_cliente=auto_cliente, sedi=sedi)
+    return render_template('reservations/reserve.html', auto_cliente=auto_cliente, sedi=sedi)
 # --- WIZARD USATO FASE 2: PERIZIA TECNICA (LATO MECCANICO) ---
-@main.route('/meccanico/valutazioni', methods=['GET', 'POST'])
+@main.route('/mechanic/valutazioni', methods=['GET', 'POST'])
 @ruolo_richiesto(2)
 def perizia_meccanico():
     if request.method == 'POST':
@@ -647,12 +647,12 @@ def perizia_meccanico():
             
             supabase.table('Esito_MV').insert(nuovo_esito).execute()
             flash("Perizia tecnica inviata al Capofficina!", "success")
-            return redirect('/dashboard_meccanico')
+            return redirect('/dashboard_mechanic')
             
         except Exception as e:
             print(f"🔴 ERRORE SALVATAGGIO PERIZIA: {str(e)}")
             flash(f"Errore DB: {str(e)}", "danger")
-            return redirect('/meccanico/valutazioni')
+            return redirect('/mechanic/valutazioni')
 
     try:
         res_esiti = supabase.table('Esito_MV').select('ID_Usato').execute()
@@ -698,17 +698,17 @@ def perizia_meccanico():
             
             pratiche_completate.append(info_pratica)
 
-        return render_template('meccanico/lista_valutazioni.html', pratiche=pratiche_completate)
+        return render_template('mechanic/valuations_list.html', pratiche=pratiche_completate)
         
     except Exception as e:
         print(f"🔴 ERRORE LETTURA PRATICHE MECCANICO: {str(e)}")
         flash(f"Impossibile caricare le valutazioni: {str(e)}", "danger")
-        return redirect('/dashboard_meccanico')
+        return redirect('/dashboard_mechanic')
 
 # --- WIZARD USATO FASE 3: APPROVAZIONE FINALE (LATO ADMIN) ---
-@main.route('/admin/approva_usato', methods=['GET', 'POST'])
+@main.route('/admin/approve_trade_in', methods=['GET', 'POST'])
 @ruolo_richiesto(4)
-def approva_usato():
+def approve_trade_in():
     if request.method == 'POST':
         try:
             id_pratica = int(request.form.get('id_pratica')) 
@@ -740,7 +740,7 @@ def approva_usato():
         except Exception as e:
             print(f"🔴 ERRORE APPROVAZIONE ADMIN: {str(e)}")
             flash(f"Supabase ha rifiutato l'approvazione. Errore: {str(e)}", "danger")
-            return redirect('/admin/approva_usato')
+            return redirect('/admin/approve_trade_in')
 
     try:
         res_approvate = supabase.table('Approvazione_PV').select('ID_Usato').execute()
@@ -780,7 +780,7 @@ def approva_usato():
                     
                 perizie_completate.append(info_completa)
             
-        return render_template('admin/approva_usato.html', perizie=perizie_completate)
+        return render_template('admin/approve_trade_in.html', perizie=perizie_completate)
         
     except Exception as e:
         print(f"🔴 ERRORE LETTURA PERIZIE ADMIN: {str(e)}")
@@ -788,9 +788,9 @@ def approva_usato():
         return redirect('/dashboard_admin')
 
 # --- AREA CLIENTE: IL MIO GARAGE ---
-@main.route('/mie_auto')
+@main.route('/my_vehicles')
 @ruolo_richiesto(1)
-def mie_auto():
+def my_vehicles():
     try:
         id_cliente = session.get('user_id')
         
@@ -818,7 +818,7 @@ def mie_auto():
                         auto['Nome_Marca'] = res_marca.data[0]['Nome']
                         auto['Marca'] = res_marca.data[0]['Nome']
         
-        return render_template('prenotazioni/mie_auto.html', auto=auto_cliente)
+        return render_template('reservations/my_vehicles.html', auto=auto_cliente)
         
     except Exception as e:
         print(f"🔴 ERRORE GARAGE: {str(e)}")
@@ -826,9 +826,9 @@ def mie_auto():
         return redirect('/area_cliente')
 
 # --- AMMINISTRAZIONE: VEDI PRENOTAZIONI IN SOSPESO ---
-@main.route('/admin/prenotazioni')
+@main.route('/admin/reservations')
 @ruolo_richiesto(4) 
-def gestione_prenotazioni():
+def manage_reservations():
     try:
         res_pren = supabase.table('PRENOTAZIONE').select('*').is_('ID_Intervento', 'null').execute()
         prenotazioni_raw = res_pren.data
@@ -850,8 +850,8 @@ def gestione_prenotazioni():
         res_mecc = supabase.table('PERSONA').select('*').eq('Ruolo', 2).execute()
         meccanici = res_mecc.data
 
-        return render_template('admin/gestione_prenotazioni.html', 
-                               prenotazioni=prenotazioni_pendenti, meccanici=meccanici)
+        return render_template('admin/manage_reservations.html', 
+                               reservations=prenotazioni_pendenti, meccanici=meccanici)
                                
     except Exception as e:
         return f"<h1>🔴 CRASH GESTIONE PRENOTAZIONI</h1><p>L'errore esatto di Supabase è: <b>{str(e)}</b></p>"
@@ -896,12 +896,12 @@ def assegna_lavoro():
         supabase.table('PRENOTAZIONE').update({"ID_Intervento": id_intervento_db}).eq('ID_Prenotazione', id_prenotazione).execute()
         
         flash("Lavoro assegnato con successo al meccanico!", "success")
-        return redirect('/admin/prenotazioni')
+        return redirect('/admin/reservations')
         
     except Exception as e:
         print(f"🔴 ERRORE ASSEGNAZIONE LAVORO: {e}")
         flash(f"Errore DB durante l'assegnazione: {str(e)}", "danger")
-        return redirect('/admin/prenotazioni')
+        return redirect('/admin/reservations')
 
 # --- ROTTA CATALOGO PUBBLICO (TEAM) ---
 @main.route('/catalog', methods=['GET'])
