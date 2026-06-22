@@ -69,9 +69,9 @@ def registrazione():
         if len(controllo.data) > 0:
             flash("Email già registrata.", "info")
             return redirect('/login')
-            
+
         residenza = f"{request.form.get('via')} {request.form.get('civico')}, {request.form.get('cap')} {request.form.get('citta')} ({request.form.get('provincia')})"
-        
+
         nuovo_utente = {
             "Nome": request.form.get('nome'),
             "Cognome": request.form.get('cognome'),
@@ -81,13 +81,17 @@ def registrazione():
             "Telefono": request.form.get('telefono'),
             "Mail": mail,
             "Password": request.form.get('password'),
-            "Ruolo": 1  
+            "Ruolo": 1
         }
+
+        risposta = supabase.table('PERSONA').insert(nuovo_utente).execute()
         
-        supabase.table('PERSONA').insert(nuovo_utente).execute()
+        id_generato = risposta.data[0]['ID_Persona']
+        supabase.table('CLIENTE').insert({"ID_Persona": id_generato}).execute()
+
         flash("Registrazione completata! Ora puoi accedere.", "success")
         return redirect('/login')
-        
+
     except Exception as e:
         print(f"ERRORE REGISTRAZIONE: {str(e)}")
         flash("Errore nel salvataggio dati.", "danger")
