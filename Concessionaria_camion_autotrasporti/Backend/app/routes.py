@@ -219,7 +219,7 @@ def dashboard_admin():
         labels_rifiuti = [r[0] for r in ord_rifiuti]; valori_rifiuti = [r[1] for r in ord_rifiuti]
 
     except Exception as e:
-        print(f"\n❌ ERRORE DASHBOARD ADMIN: {str(e)}\n")
+        print(f"\nERRORE DASHBOARD ADMIN: {str(e)}\n")
         veicoli_catalogo, interventi_aperti, valutazioni_sospeso = 0, 0, 0
         labels_modelli, valori_modelli, labels_venditori, valori_venditori = [], [], [], []
         labels_meccanici, valori_meccanici, labels_rifiuti, valori_rifiuti = [], [], [], []
@@ -260,7 +260,7 @@ def toggle_utente(id_persona):
                 "Data_Inizio": oggi,
                 "Data_Fine": None,
                 "Motivo": motivo_blocco,
-                "id_persona": id_persona  # 👈 DEVI AGGIUNGERE SOLO QUESTA RIGA!
+                "id_persona": id_persona  # DEVI AGGIUNGERE SOLO QUESTA RIGA!
             }
             res_blocco = supabase.table('BLOCCO').insert(nuovo_blocco).execute()
             id_blocco_generato = res_blocco.data[0]['ID_Blocco']
@@ -389,7 +389,7 @@ def add_crew():
             return redirect('/admin_dashboard')
             
         except Exception as e:
-            print(f"🔴 ERRORE ASSUNZIONE: {str(e)}")
+            print(f"ERRORE ASSUNZIONE: {str(e)}")
             flash(f"Errore durante l'inserimento nel database: {str(e)}", "danger")
             return redirect('/admin/add_crew')
             
@@ -538,7 +538,7 @@ def dashboard_mechanic():
                                totale_storico=totale_storico)
                                
     except Exception as e:
-        print(f"🔴 ERRORE KANBAN MECCANICO: {str(e)}")
+        print(f"ERRORE KANBAN MECCANICO: {str(e)}")
         flash("Errore nel caricamento della tua bacheca.", "danger")
         return redirect('/')
 
