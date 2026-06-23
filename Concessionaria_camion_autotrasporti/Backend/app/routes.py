@@ -41,10 +41,18 @@ def login():
                 session['user_id'] = utente['ID_Persona']
                 session['ruolo'] = utente['Ruolo'] 
                 session['nome'] = utente['Nome']
-                if utente['Ruolo'] == 4: return redirect('/admin_dashboard')
-                elif utente['Ruolo'] == 3: return redirect('/salespearson')
-                elif utente['Ruolo'] == 2: return redirect('/dashboard_meccanico')    
-                elif utente['Ruolo'] == 1: return redirect('/area_cliente')
+
+                # SMISTAMENTO AUTOMATICO DOPO IL LOGIN (COMPLETO)
+                if utente['Ruolo'] == 4:
+                    return redirect('/admin_dashboard')
+                elif utente['Ruolo'] == 3:
+                    return redirect('/salespearson')
+                elif utente['Ruolo'] == 2:
+                    return redirect('/dashboard_mechanic')    
+                elif utente['Ruolo'] == 1:
+                    return redirect('/area_cliente')
+                else:
+                    return redirect('/')
             else:
                 flash("Password errata.", "danger")
                 return redirect('/login')
@@ -281,12 +289,15 @@ def add_crew():
     if request.method == 'POST':
         ruolo_scelto = int(request.form.get('ruolo')) 
         mail = request.form.get('mail')
+        
         try:
+            # Controllo anti-duplicati sulla mail
             controllo = supabase.table('PERSONA').select('*').eq('Mail', mail).execute()
             if len(controllo.data) > 0:
                 flash("Errore: Email già presente nel sistema.", "danger")
                 return redirect('/admin/add_crew')
             
+            # --- STEP 1: INSERT IN PERSONA (Dati Anagrafici) ---
             nuovo_dipendente = {
                 "Nome": request.form.get('nome'),
                 "Cognome": request.form.get('cognome'),
@@ -297,14 +308,67 @@ def add_crew():
                 "Password": request.form.get('password'),
                 "Ruolo": ruolo_scelto 
             }
-            supabase.table('PERSONA').insert(nuovo_dipendente).execute()
-            flash(f"Dipendente {nuovo_dipendente['Nome']} aggiunto con successo!", "success")
+            res_persona = supabase.table('PERSONA').insert(nuovo_dipendente).execute()
+            
+            if not res_persona.data:
+                flash("Errore: Impossibile recuperare l'ID del nuovo dipendente.", "danger")
+                return redirect('/admin/add_crew')
+                
+            id_nuova_persona = res_persona.data[0].get('ID_Persona')
+            
+            # --- STEP 2: INSERT IN LAVORATORE (Dati Contrattuali) ---
+            data_ass = request.form.get('data_assunzione')
+            stipendio = request.form.get('stipendio')
+
+            nuovo_lavoratore = {
+                "ID_Persona": id_nuova_persona,
+                "Data_Assunzione": data_ass if data_ass else date.today().isoformat(),
+                "Paga_Mensile": float(stipendio) if stipendio else 0.0
+            }
+            supabase.table('LAVORATORE').insert(nuovo_lavoratore).execute()
+            
+            # --- STEP 3: SMISTAMENTO NELLE TABELLE SPECIFICHE ---
+            if ruolo_scelto == 2:
+                tot_interventi = int(request.form.get('totale_interventi') or 0)
+                trasferte_esterne = int(request.form.get('trasferte_esterne') or 0)
+
+                nuovo_meccanico = {
+                    "ID_Persona": id_nuova_persona,
+                    "Totale_interventi": tot_interventi,
+                    "Trasferte_Esterne": trasferte_esterne
+                }
+                supabase.table('MECCANICO').insert(nuovo_meccanico).execute()
+                
+            elif ruolo_scelto == 3:
+                bonus = request.form.get('bonus_vendite')
+
+                nuovo_venditore = {
+                    "ID_Persona": id_nuova_persona,
+                    "Bonus_Vendite": float(bonus) if bonus else 0.0,
+                    "ID_Ufficio": 1
+                }
+                supabase.table('VENDITORE').insert(nuovo_venditore).execute()
+                
+            elif ruolo_scelto == 5:
+                tipologia = request.form.get('tipologia_lavoro')
+
+                nuovo_impiegato = {
+                    "ID_Persona": id_nuova_persona,
+                    "Tipologia_Lavoro": tipologia if tipologia else "Generico",
+                    "ID_Ufficio": 1
+                }
+                supabase.table('IMPIEGATO').insert(nuovo_impiegato).execute()
+
+            flash(f"Dipendente {nuovo_dipendente['Nome']} configurato con successo in tutte le tabelle aziendali!", "success")
             return redirect('/admin_dashboard')
+            
         except Exception as e:
-            print(f"ERRORE ASSUNZIONE: {str(e)}")
-            flash("Errore durante l'inserimento nel database.", "danger")
+            print(f"🔴 ERRORE ASSUNZIONE: {str(e)}")
+            flash(f"Errore durante l'inserimento nel database: {str(e)}", "danger")
             return redirect('/admin/add_crew')
+            
     return render_template('admin/add_crew.html')
+
 
 # --- AMMINISTRAZIONE: CATALOGO (MERGED) ---
 @main.route('/admin/catalog', methods=['GET', 'POST'])
@@ -403,26 +467,44 @@ def dashboard_mechanic():
     try:
         id_meccanico = session.get('user_id')
         
-        # 1. Carichiamo i compiti per le 3 colonne della Kanban
+        # 1. Recuperiamo i compiti e l'ID dell'Officina (che corrisponde all'ID_Sede)
         response = supabase.table('COMPITO').select(
-            '*, INTERVENTO(Data_Inizio, Targa, OFFICINA(Nome, Interna))'
+            '*, INTERVENTO(Data_Inizio, Targa, ID_Officina)'
         ).eq('ID_Persona', id_meccanico).execute()
 
         tutti_i_compiti = response.data
+
+        # 2. Recuperiamo tutte le sedi per capire a quale concessionario appartengono
+        res_sedi = supabase.table('SEDE').select('*').execute()
+        mappa_sedi = {s['ID_Sede']: s for s in res_sedi.data} if res_sedi.data else {}
+
+        # 3. LA MAGIA: Diciamo noi all'HTML se l'officina è interna o esterna!
+        for c in tutti_i_compiti:
+            intervento = c.get('INTERVENTO', {})
+            if not intervento: continue
+            
+            id_sede = intervento.get('ID_Officina')
+            sede_info = mappa_sedi.get(id_sede, {})
+            
+            # Leggiamo l'ID_Concessionario di questa specifica sede (di default 1 se manca)
+            id_conc = sede_info.get('ID_Concessionario', 1)
+            nome_sede = sede_info.get('Denominazione', 'Sconosciuta')
+
+            # La nostra regola d'oro: se Concessionario è 1 è INTERNA, altrimenti è ESTERNA
+            if id_conc == 1:
+                intervento['OFFICINA'] = {"Interna": True, "Nome": nome_sede}
+            else:
+                intervento['OFFICINA'] = {"Interna": False, "Nome": nome_sede}
+
+        # 4. Dividiamo i compiti per le colonne
         da_fare = [c for c in tutti_i_compiti if c.get('Stato', 'Da fare') == 'Da fare']
         in_corso = [c for c in tutti_i_compiti if c.get('Stato') == 'In corso']
         finiti = [c for c in tutti_i_compiti if c.get('Stato') == 'Finito']
 
-        # Andiamo a cercare il numero di interventi totali salvato nella tabella MECCANICO
+        # 5. Recuperiamo lo storico performance
         res_mecc = supabase.table('MECCANICO').select('Totale_interventi').eq('ID_Persona', id_meccanico).execute()
-        
-        # Estraiamo il numero, se non trova nulla (o è un meccanico appena assunto) di default è 0
-        if res_mecc.data:
-            totale_storico = res_mecc.data[0]['Totale_interventi']
-        else:
-            totale_storico = 0
+        totale_storico = res_mecc.data[0]['Totale_interventi'] if res_mecc.data else 0
 
-        # 3. Inviamo tutto all'HTML (incluso il totale_storico)
         return render_template('mechanic/dashboard_mechanic.html', 
                                da_fare=da_fare, 
                                in_corso=in_corso, 
@@ -430,7 +512,7 @@ def dashboard_mechanic():
                                totale_storico=totale_storico)
                                
     except Exception as e:
-        print(f"ERRORE KANBAN MECCANICO: {str(e)}")
+        print(f"🔴 ERRORE KANBAN MECCANICO: {str(e)}")
         flash("Errore nel caricamento della tua bacheca.", "danger")
         return redirect('/')
 
@@ -441,27 +523,53 @@ def pulisci_completati():
     try:
         id_meccanico = session.get('user_id')
         
-        # 1. Contiamo quanti compiti sono in stato "Finito" prima di archiviarli
-        res_finiti = supabase.table('COMPITO').select('ID_Compito').eq('ID_Persona', id_meccanico).eq('Stato', 'Finito').execute()
+        # 1. Recuperiamo i dettagli dei compiti in stato "Finito" includendo l'ID_Officina dell'intervento
+        res_finiti = supabase.table('COMPITO').select(
+            'ID_Compito, INTERVENTO(ID_Officina)'
+        ).eq('ID_Persona', id_meccanico).eq('Stato', 'Finito').execute()
+        
         numero_da_archiviare = len(res_finiti.data)
         
         if numero_da_archiviare > 0:
-            # 2. Li spostiamo in "Archiviato"
-            supabase.table('COMPITO').update({'Stato': 'Archiviato'}).eq('ID_Persona', id_meccanico).eq('Stato', 'Finito').execute()
+            numero_trasferte = 0
             
-            # 3. Aggiorniamo il contatore nella tabella MECCANICO
-            res_mecc = supabase.table('MECCANICO').select('Totale_interventi').eq('ID_Persona', id_meccanico).execute()
+            # 2. Cicliamo sui compiti per contare quanti appartengono a una sede esterna (!= 1)
+            for compito in res_finiti.data:
+                intervento = compito.get('INTERVENTO')
+                if intervento and intervento.get('ID_Officina') != 1:
+                    numero_trasferte += 1
+            
+            # 3. Spostiamo i compiti in "Archiviato" uno per uno (o in blocco sfruttando gli ID)
+            # Per sicurezza e consistenza usiamo gli ID appena recuperati
+            for compito in res_finiti.data:
+                supabase.table('COMPITO').update({'Stato': 'Archiviato'}).eq('ID_Compito', compito['ID_Compito']).execute()
+            
+            # 4. Aggiorniamo i contatori (Totale_interventi e Trasferte_Esterne) nella tabella MECCANICO
+            res_mecc = supabase.table('MECCANICO').select('Totale_interventi', 'Trasferte_Esterne').eq('ID_Persona', id_meccanico).execute()
+            
             if res_mecc.data:
-                attuale = res_mecc.data[0]['Totale_interventi']
-                nuovo_totale = attuale + numero_da_archiviare
-                supabase.table('MECCANICO').update({'Totale_interventi': nuovo_totale}).eq('ID_Persona', id_meccanico).execute()
+                attuale_interventi = res_mecc.data[0].get('Totale_interventi', 0)
+                attuale_trasferte = res_mecc.data[0].get('Trasferte_Esterne', 0)
                 
-            flash(f"Bacheca pulita! Hai registrato {numero_da_archiviare} nuovi interventi nel tuo storico.", "success")
+                nuovo_totale_interventi = attuale_interventi + numero_da_archiviare
+                nuovo_totale_trasferte = attuale_trasferte + numero_trasferte
+                
+                # Unica query di update per aggiornare entrambi i campi
+                supabase.table('MECCANICO').update({
+                    'Totale_interventi': nuovo_totale_interventi,
+                    'Trasferte_Esterne': nuovo_totale_trasferte
+                }).eq('ID_Persona', id_meccanico).execute()
+                
+            # 5. Prepariamo un messaggio flash personalizzato in base al tipo di lavoro svolto
+            if numero_trasferte > 0:
+                flash(f"Bacheca pulita! Archiviati {numero_da_archiviare} interventi totali, di cui {numero_trasferte} trasferte esterne registrate.", "success")
+            else:
+                flash(f"Bacheca pulita! Hai registrato {numero_da_archiviare} nuovi interventi interni nel tuo storico.", "success")
         else:
             flash("Non ci sono compiti completati da pulire.", "info")
             
     except Exception as e:
-        print(f"ERRORE PULIZIA COMPITI: {str(e)}")
+        print(f"🔴 ERRORE PULIZIA COMPITI: {str(e)}")
         flash("Errore durante l'archiviazione dei compiti.", "danger")
         
     return redirect('/dashboard_mechanic')
@@ -865,6 +973,8 @@ def my_vehicles():
 @ruolo_richiesto(4) 
 def manage_reservations():
     try:
+        # Cerchiamo le prenotazioni dove ID_Intervento è NULL (in sospeso)
+        # NOTA: Se nel DB la colonna è minuscola, cambia 'ID_Intervento' in 'id_intervento'
         res_pren = supabase.table('PRENOTAZIONE').select('*').is_('ID_Intervento', 'null').execute()
         prenotazioni_raw = res_pren.data
         prenotazioni_pendenti = []
@@ -873,23 +983,39 @@ def manage_reservations():
             info_pren = pren.copy()
             info_pren['PERSONA'] = {"Nome": "N/D", "Cognome": "N/D"}
             
-            id_cliente = pren.get('ID_Persona')
+            # Recuperiamo l'ID del cliente (gestendo sia maiuscolo che minuscolo per sicurezza)
+            id_cliente = pren.get('ID_Persona') or pren.get('id_persona')
+            
             if id_cliente:
                 res_cliente = supabase.table('PERSONA').select('Nome', 'Cognome').eq('ID_Persona', id_cliente).execute()
                 if res_cliente.data:
-                    info_pren['PERSONA']['Nome'] = res_cliente.data[0].get('Nome')
-                    info_pren['PERSONA']['Cognome'] = res_cliente.data[0].get('Cognome')
+                    # Gestiamo i dati del cliente salvandoli nella chiave 'PERSONA' richiesta dall'HTML
+                    res_data = res_cliente.data[0]
+                    info_pren['PERSONA']['Nome'] = res_data.get('Nome') or res_data.get('nome') or "N/D"
+                    info_pren['PERSONA']['Cognome'] = res_data.get('Cognome') or res_data.get('cognome') or ""
+            
+            # Supporto per i programmatori del team: duplichiamo i campi in minuscolo se necessario nell'HTML
+            # Se l'HTML cerca p.targa o p.data_prenotazione, funzionerà comunque
+            if 'Targa' in info_pren: info_pren['targa'] = info_pren['Targa']
+            if 'Data_Prenotazione' in info_pren: info_pren['data_prenotazione'] = info_pren['Data_Prenotazione']
+            if 'Ora_Incontro' in info_pren: info_pren['ora_incontro'] = info_pren['Ora_Incontro']
+            if 'NumeroTelaio' in info_pren: info_pren['numerotelaio'] = info_pren['NumeroTelaio']
+            if 'ID_Prenotazione' in info_pren: info_pren['id_prenotazione'] = info_pren['ID_Prenotazione']
+            if 'Nota_Cliente' in info_pren: info_pren['nota_cliente'] = info_pren['Nota_Cliente']
                     
             prenotazioni_pendenti.append(info_pren)
 
+        # Carichiamo i meccanici (Ruolo = 2)
         res_mecc = supabase.table('PERSONA').select('*').eq('Ruolo', 2).execute()
         meccanici = res_mecc.data
 
+        # Passiamo la variabile 'reservations' esattamente in inglese come richiesto dall'HTML
         return render_template('admin/manage_reservations.html', 
                                reservations=prenotazioni_pendenti, meccanici=meccanici)
                                
     except Exception as e:
         return f"<h1>🔴 CRASH GESTIONE PRENOTAZIONI</h1><p>L'errore esatto di Supabase è: <b>{str(e)}</b></p>"
+
 
 # --- AMMINISTRAZIONE: ASSEGNA IL LAVORO ---
 @main.route('/admin/assegna_lavoro', methods=['POST'])
@@ -900,13 +1026,24 @@ def assegna_lavoro():
         targa = request.form.get('targa')
         data_inizio = request.form.get('data')
         ora_inizio = request.form.get('ora')
-        id_meccanico = int(request.form.get('id_meccanico'))
         nome_compito = request.form.get('nome_compito')
         durata = int(request.form.get('durata'))
+        lista_meccanici = request.form.getlist('id_meccanico')
 
+        if not lista_meccanici:
+            flash("Devi selezionare almeno un meccanico!", "warning")
+            return redirect('/admin/reservations')
+
+        # 1. RECUPERIAMO LA SEDE SCELTA DAL CLIENTE
+        res_pren = supabase.table('PRENOTAZIONE').select('ID_Sede').eq('ID_Prenotazione', id_prenotazione).execute()
+        
+        # Se c'è una sede salvata, usiamo quella, altrimenti per sicurezza mettiamo 1
+        id_sede_scelta = res_pren.data[0].get('ID_Sede') if res_pren.data else 1
+
+        # 2. SALVIAMO L'INTERVENTO COLLEGANDOLO ALLA SEDE GIUSTA
         nuovo_intervento = {
             "Targa": targa, 
-            "ID_Officina": 1, 
+            "ID_Officina": id_sede_scelta, # 👈 CRUCIALE: Prima salvava sempre 1 fisso!
             "Data_Inizio": data_inizio, 
             "Orario_Inizio": ora_inizio, 
             "Tipologia_Intervento": "Manutenzione", 
@@ -916,21 +1053,26 @@ def assegna_lavoro():
             "Km_Veicolo": 0 
         }
         res_intervento = supabase.table('INTERVENTO').insert(nuovo_intervento).execute()
-        id_intervento_db = res_intervento.data[0]['ID_Intervento']
+        id_intervento_db = res_intervento.data[0].get('ID_Intervento') or res_intervento.data[0].get('id_intervento')
 
-        nuovo_compito = {
-            "ID_Intervento": id_intervento_db, 
-            "ID_Persona": id_meccanico, 
-            "Nome": nome_compito[:20], 
-            "Durata": durata, 
-            "Data_Inizio": data_inizio,
-            "Stato": "Da fare"  # <--- AGGIUNTO ESPLICITAMENTE!
-        }
-        supabase.table('COMPITO').insert(nuovo_compito).execute()
+        # 3. CREIAMO I COMPITI PER I MECCANICI
+        nuovi_compiti = []
+        for id_mecc in lista_meccanici:
+            nuovi_compiti.append({
+                "ID_Intervento": id_intervento_db, 
+                "ID_Persona": int(id_mecc), 
+                "Nome": nome_compito[:20], 
+                "Durata": durata, 
+                "Data_Inizio": data_inizio,
+                "Stato": "Da fare" 
+            })
+        
+        supabase.table('COMPITO').insert(nuovi_compiti).execute()
 
+        # 4. AGGIORNIAMO LA PRENOTAZIONE
         supabase.table('PRENOTAZIONE').update({"ID_Intervento": id_intervento_db}).eq('ID_Prenotazione', id_prenotazione).execute()
         
-        flash("Lavoro assegnato con successo al meccanico!", "success")
+        flash(f"Lavoro assegnato con successo a {len(lista_meccanici)} meccanici!", "success")
         return redirect('/admin/reservations')
         
     except Exception as e:
