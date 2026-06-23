@@ -630,12 +630,15 @@ def trade_in():
     if request.method == 'POST':
         try:
             tipo_inserimento = request.form.get('tipo_inserimento')
+            # Catturiamo la descrizione scritta dall'utente nel modulo HTML
+            descrizione_scritta = request.form.get('descrizione_veicolo') 
             
             if tipo_inserimento == 'nuovo':
                 telaio = request.form.get('numero_telaio').upper()
                 targa = request.form.get('targa').upper()
                 nome_marca = request.form.get('marca').strip().capitalize()
                 
+                # Gestione della Marca
                 res_marca = supabase.table('MARCA').select('ID_Marca').eq('Nome', nome_marca).execute()
                 if res_marca.data:
                     id_marca = res_marca.data[0]['ID_Marca']
@@ -643,49 +646,56 @@ def trade_in():
                     res_nuova = supabase.table('MARCA').insert({"Nome": nome_marca, "Attiva": "Y"}).execute()
                     id_marca = res_nuova.data[0]['ID_Marca']
 
-                # Salviamo il veicolo nuovo
+                # Salviamo il veicolo nuovo (La descrizione va direttamente qui)
                 nuovo_veicolo = {
                     "NumeroTelaio": telaio,
                     "Targa": targa,
                     "Modello": request.form.get('modello')[:15],
-                    "Anno_Produzione": int(request.form.get('anno')),
+                    "Anno_Produzione": int(request.form.get('anno') or 0),
                     "Data_Immatricolazione": request.form.get('data_immatricolazione'),
-                    "Kilometraggio": int(request.form.get('km')),
-                    "Potenza_CV": int(request.form.get('potenza_cv')),
-                    "Peso": float(request.form.get('peso')),
+                    "Kilometraggio": int(request.form.get('km') or 0),
+                    "Potenza_CV": int(request.form.get('potenza_cv') or 0),
+                    "Peso": float(request.form.get('peso') or 0.0),
                     "Tipologia_Motrice": request.form.get('tipologia_motrice'),
                     "Classe_Inquinamento": request.form.get('classe_inquinamento'),
                     "Configurazione_Assi": request.form.get('configurazione_assi'),
-                    "Numero_Assi": int(request.form.get('numero_assi')),
-                    "Descrizione": request.form.get('descrizione_veicolo'),
-                    "Prezzo_Base": float(request.form.get('prezzo')), 
+                    "Numero_Assi": int(request.form.get('numero_assi') or 2),
+                    "Descrizione": descrizione_scritta,  # <-- Inserita qui!
+                    "Prezzo_Base": float(request.form.get('prezzo') or 0.0), 
                     "Stato_Disponibilita": 'U',
                     "ID_Marca": id_marca
                 }
                 supabase.table('VEICOLO').insert(nuovo_veicolo).execute()
+                
             else:
+                # Veicolo esistente nel garage
                 telaio = request.form.get('telaio_esistente')
                 res_veicolo = supabase.table('VEICOLO').select('Targa').eq('NumeroTelaio', telaio).execute()
                 targa = res_veicolo.data[0]['Targa'] if res_veicolo.data else ""
 
-            # Creiamo la valutazione 
-            prezzo_proposto = request.form.get('prezzo_proposto')
-            prezzo_proposto = float(prezzo_proposto) if prezzo_proposto else 0.0
-            
+                # <-- NOVITÀ: UPDATE VEICOLO ESISTENTE -->
+                # Aggiorniamo la colonna Descrizione del veicolo che ha appena selezionato
+                if telaio:
+                    supabase.table('VEICOLO').update({
+                        'Descrizione': descrizione_scritta
+                    }).eq('NumeroTelaio', telaio).execute()
+
+            # --- CREAZIONE DELLA PRATICA DI VALUTAZIONE ---
             nuova_valutazione = {
                 "NumeroTelaio": telaio,
                 "Targa": targa,
                 "Data_Inizio": request.form.get('data'),
-                "Prezzo_Proposto": prezzo_proposto,
-                "Note_Cliente": request.form.get('descrizione'),
                 "ID_Persona": session.get('user_id')
+                # ❌ Rimossi del tutto "Prezzo_Proposto" e "Note_Cliente"
+                # Il prezzo lo inserirà l'Admin nella Fase 3 come Prezzo_Finale!
             }
+            
             supabase.table('VALUTAZIONE_USATO').insert(nuova_valutazione).execute()
             flash("Proposta dell'usato inviata con successo!", "success")
             return redirect('/area_cliente')
 
         except Exception as e:
-            print(f"ERRORE PROPOSTA USATO: {e}")
+            print(f"🔴 ERRORE PROPOSTA USATO: {e}")
             flash(f"Errore DB: {str(e)}", "danger")
             return redirect('/trade_in')
 
@@ -712,7 +722,6 @@ def trade_in():
     except Exception as e:
         auto_cliente = []
 
-    # <-- MODIFICATO: ora punta alla cartella giusta
     return render_template('reservations/trade_in.html', auto_cliente=auto_cliente)
 
 # --- PRENOTAZIONE OFFICINA ---
@@ -810,30 +819,78 @@ def prenota_intervento():
 
     # <-- MODIFICATO: ora punta alla cartella giusta e passa le sedi
     return render_template('reservations/reserve.html', auto_cliente=auto_cliente, sedi=sedi)
+
+
 # --- WIZARD USATO FASE 2: PERIZIA TECNICA (LATO MECCANICO) ---
 @main.route('/mechanic/valutazioni', methods=['GET', 'POST'])
 @ruolo_richiesto(2)
 def perizia_meccanico():
     if request.method == 'POST':
         try:
-            nuovo_esito = {
-                "ID_Usato": int(request.form.get('id_pratica')),            
-                "ID_Persona": session.get('user_id'),
-                "Esito_Meccanico": request.form.get('stato_meccanico')[:1], 
-                "Prezzo_Consigliato": float(request.form.get('prezzo_consigliato')),
-                "Descrizione": request.form.get('descrizione_danni')        
-            }
+            stato_scelto = request.form.get('stato_meccanico')
+            id_pratica = int(request.form.get('id_pratica'))
+            id_meccanico = session.get('user_id')
+            descrizione_danni = request.form.get('descrizione_danni')
             
-            supabase.table('Esito_MV').insert(nuovo_esito).execute()
-            flash("Perizia tecnica inviata al Capofficina!", "success")
+            if stato_scelto == 'Rifiutato':
+                # --- FLUSSO 1: RIFIUTO E CHIUSURA AUTOMATICA DI SISTEMA ---
+                esito_meccanico = 'P'        # 'P' serve per far funzionare il grafico dei rifiuti dell'Admin
+                prezzo_consigliato = None    # Funziona correttamente grazie alla query DROP NOT NULL eseguita!
+                
+                # 1. Salviamo la perizia del meccanico nella tabella Esito_MV (con prezzo NULL)
+                nuovo_esito = {
+                    "ID_Usato": id_pratica,            
+                    "ID_Persona": id_meccanico,
+                    "Esito_Meccanico": esito_meccanico, 
+                    "Prezzo_Consigliato": prezzo_consigliato,
+                    "Descrizione": descrizione_danni        
+                }
+                supabase.table('Esito_MV').insert(nuovo_esito).execute()
+
+                # 2. Inseriamo la riga di chiusura automatica nella tabella delle approvazioni
+                approvazione_auto = {
+                    "ID_Usato": id_pratica,
+                    "Nota_Proprietario": "Chiusura automatica di sistema: Veicolo inidoneo alla vendita secondo la perizia tecnica.",
+                    "Stato_Decisione": "R",     # 'R' = Rifiutato dall'azienda
+                    "ID_Persona": id_meccanico  # Archiviamo l'ID del meccanico che ha interrotto la pratica
+                }
+                supabase.table('Approvazione_PV').insert(approvazione_auto).execute()
+
+                # 3. Aggiorniamo la tabella principale dell'usato inserendo la data di fine
+                supabase.table('VALUTAZIONE_USATO').update({
+                    "Data_Fine": date.today().isoformat(),
+                    "Prezzo_Finale": 0.0        # Pratica chiusa a zero euro
+                }).eq('ID_Usato', id_pratica).execute()
+
+                flash("Veicolo scartato con successo. La pratica è stata chiusa in automatico e archiviata.", "warning")
+
+            else:
+                # --- FLUSSO 2: APPROVAZIONE MECCANICO E INVIO ALL'ADMIN ---
+                esito_meccanico = 'A'        # 'A' = Approvato dal meccanico
+                prezzo_form = request.form.get('prezzo_consigliato')
+                prezzo_consigliato = float(prezzo_form) if prezzo_form else 0.0
+
+                nuovo_esito = {
+                    "ID_Usato": id_pratica,            
+                    "ID_Persona": id_meccanico,
+                    "Esito_Meccanico": esito_meccanico, 
+                    "Prezzo_Consigliato": prezzo_consigliato,
+                    "Descrizione": descrizione_danni        
+                }
+                supabase.table('Esito_MV').insert(nuovo_esito).execute()
+                
+                flash("Perizia tecnica positiva inviata correttamente al Capofficina per l'approvazione finale!", "success")
+
             return redirect('/dashboard_mechanic')
             
         except Exception as e:
             print(f"🔴 ERRORE SALVATAGGIO PERIZIA: {str(e)}")
-            flash(f"Errore DB: {str(e)}", "danger")
+            flash(f"Errore DB durante il salvataggio: {str(e)}", "danger")
             return redirect('/mechanic/valutazioni')
 
+    # --- FASE GET: CARICAMENTO DELLE AUTO ANCORA DA ANALIZZARE ---
     try:
+        # Recuperiamo le auto già analizzate dal meccanico o già chiuse dall'admin per escluderle
         res_esiti = supabase.table('Esito_MV').select('ID_Usato').execute()
         auto_gia_valutate = [r['ID_Usato'] for r in res_esiti.data]
 
@@ -842,6 +899,7 @@ def perizia_meccanico():
 
         esclusioni = set(auto_gia_valutate + auto_gia_approvate)
 
+        # Carichiamo l'elenco generale delle richieste
         res_val = supabase.table('VALUTAZIONE_USATO').select('*').execute()
         pratiche_raw = res_val.data
         pratiche_completate = []
@@ -849,6 +907,7 @@ def perizia_meccanico():
         for p in pratiche_raw:
             id_usato = p.get("ID_Usato")
             
+            # Se la pratica è già stata gestita dal meccanico o chiusa, la saltiamo
             if id_usato in esclusioni:
                 continue
 
@@ -863,6 +922,7 @@ def perizia_meccanico():
                 "Km": "N/D"
             }
             
+            # Recuperiamo i dettagli tecnici incrociando i dati con la tabella VEICOLO
             res_v = supabase.table('VEICOLO').select('*').eq('NumeroTelaio', p.get("NumeroTelaio")).execute()
             if res_v.data:
                 veicolo = res_v.data[0]
@@ -881,7 +941,7 @@ def perizia_meccanico():
         
     except Exception as e:
         print(f"🔴 ERRORE LETTURA PRATICHE MECCANICO: {str(e)}")
-        flash(f"Impossibile caricare le valutazioni: {str(e)}", "danger")
+        flash(f"Impossibile caricare l'elenco delle valutazioni: {str(e)}", "danger")
         return redirect('/dashboard_mechanic')
 
 # --- WIZARD USATO FASE 3: APPROVAZIONE FINALE (LATO ADMIN) ---
@@ -891,28 +951,43 @@ def approve_trade_in():
     if request.method == 'POST':
         try:
             id_pratica = int(request.form.get('id_pratica')) 
-            prezzo_finale = float(request.form.get('prezzo_finale'))
             decisione = request.form.get('decisione') 
-            note_admin = request.form.get('nota_proprietario', 'Approvato da Admin')
+            note_admin = request.form.get('nota_proprietario', '').strip()
+            
+            if decisione == 'R':
+                # --- CASO RIFIUTO AMMINISTRATORE ---
+                prezzo_finale = None  # Inserisce un valore NULL reale nel database
+                stato_decisione = 'P' # Allineato con 'P' (Rifiutato) per far girare correttamente le statistiche dei grafici
+                if not note_admin:
+                    note_admin = "Proposta di acquisto rifiutata definitivamente dall'Amministratore."
+            else:
+                # --- CASO ACQUISTO CONFERMATO ---
+                prezzo_form = request.form.get('prezzo_finale')
+                prezzo_finale = float(prezzo_form) if prezzo_form else 0.0
+                stato_decisione = 'A' # 'A' = Acquistato/Approvato
+                if not note_admin:
+                    note_admin = "Approvato da Admin e inserito nel parco auto aziendale."
 
+            # 1. Aggiorniamo la tabella principale dell'usato con la data di fine e il prezzo calcolato
             supabase.table('VALUTAZIONE_USATO').update({
                 "Data_Fine": request.form.get('data_approvazione'),
                 "Prezzo_Finale": prezzo_finale
             }).eq('ID_Usato', id_pratica).execute()
 
+            # 2. Registriamo lo storico formale della pratica conclusa nella tabella Approvazione_PV
             approvazione_data = {
-                "ID_Usato": id_pratica,                                          
+                "ID_Usato": id_pratica,                                                                           
                 "Nota_Proprietario": note_admin[:500],            
-                "Stato_Decisione": decisione[:1],                
+                "Stato_Decisione": stato_decisione,                
                 "ID_Persona": session.get('user_id')            
             }
-            
             supabase.table('Approvazione_PV').insert(approvazione_data).execute()
 
-            if decisione.upper().startswith('A'): 
-                flash("Veicolo acquistato e archiviato nello stock!", "success")
+            # 3. Inviamo il corretto feedback grafico all'Amministratore
+            if stato_decisione == 'A': 
+                flash("Veicolo acquistato e archiviato nello stock con successo!", "success")
             else:
-                flash("Proposta rifiutata definitivamente.", "warning")
+                flash("Proposta dell'usato rifiutata definitivamente. Pratica archiviata negativamente.", "warning")
                 
             return redirect('/admin_dashboard')
             
@@ -921,7 +996,9 @@ def approve_trade_in():
             flash(f"Supabase ha rifiutato l'approvazione. Errore: {str(e)}", "danger")
             return redirect('/admin/approve_trade_in')
 
+    # --- FASE GET: CARICAMENTO DELLE PERIZIE PRONTE DA CONVALIDARE ---
     try:
+        # Estraiamo le pratiche già concluse per escluderle visivamente ed evitare orfani
         res_approvate = supabase.table('Approvazione_PV').select('ID_Usato').execute()
         pratiche_gia_chiuse = [r['ID_Usato'] for r in res_approvate.data]
 
@@ -932,6 +1009,7 @@ def approve_trade_in():
         for perizia in perizie_raw:
             id_usato = perizia.get("ID_Usato")
             
+            # Se la pratica è già archiviata in Approvazione_PV, scompare dall'interfaccia!
             if id_usato in pratiche_gia_chiuse:
                 continue
 
@@ -951,6 +1029,7 @@ def approve_trade_in():
                     "NumeroTelaio": valutazione.get("NumeroTelaio")
                 }
                 
+                # Recuperiamo l'anagrafica del meccanico per visualizzarla nella card
                 res_pers = supabase.table('PERSONA').select('Nome', 'Cognome').eq('ID_Persona', id_meccanico).execute()
                 if res_pers.data:
                     persona = res_pers.data[0]
@@ -1000,7 +1079,7 @@ def my_vehicles():
         return render_template('reservations/my_vehicles.html', auto=auto_cliente)
         
     except Exception as e:
-        print(f"🔴 ERRORE GARAGE: {str(e)}")
+        print(f"ERRORE GARAGE: {str(e)}")
         flash(f"Errore caricamento garage: {str(e)}", "danger")
         return redirect('/area_cliente')
 
@@ -1050,7 +1129,7 @@ def manage_reservations():
                                reservations=prenotazioni_pendenti, meccanici=meccanici)
                                
     except Exception as e:
-        return f"<h1>🔴 CRASH GESTIONE PRENOTAZIONI</h1><p>L'errore esatto di Supabase è: <b>{str(e)}</b></p>"
+        return f"<h1>CRASH GESTIONE PRENOTAZIONI</h1><p>L'errore esatto di Supabase è: <b>{str(e)}</b></p>"
 
 
 # --- AMMINISTRAZIONE: ASSEGNA IL LAVORO ---
@@ -1112,7 +1191,7 @@ def assegna_lavoro():
         return redirect('/admin/reservations')
         
     except Exception as e:
-        print(f"🔴 ERRORE ASSEGNAZIONE LAVORO: {e}")
+        print(f"ERRORE ASSEGNAZIONE LAVORO: {e}")
         flash(f"Errore DB durante l'assegnazione: {str(e)}", "danger")
         return redirect('/admin/reservations')
 

@@ -23,6 +23,8 @@
                     <a class="nav-link" href="/salespearson">Dashboard Vendite</a>
                     <a class="nav-link" href="/transaction_wizard">Nuova Transazione</a>
                 
+                {% elif session.get('ruolo') == 2 %}
+                    <a class="nav-link" href="/dashboard_mechanic">Dashboard Meccanico</a>
                 {% elif session.get('ruolo') == 5 %}                    
                     <a class="nav-link" href="/admin/utenti">Anagrafiche</a>
                     <a class="nav-link" href="/admin/catalog">Gestione Garage</a>

@@ -50,7 +50,6 @@
                                         <label class="form-label">Modello</label>
                                         <input type="text" name="modello" class="form-control req-nuovo">
                                     </div>
-
                                     <div class="col-md-4">
                                         <label class="form-label">Targa</label>
                                         <input type="text" name="targa" class="form-control text-uppercase req-nuovo">
@@ -62,29 +61,25 @@
                                         <label class="form-label">Anno Produzione</label>
                                         <input type="number" name="anno" class="form-control req-nuovo">
                                     </div>
-
                                     <div class="col-md-4">
                                         <label class="form-label">Data Immatricolazione</label>
                                         <input type="date" name="data_immatricolazione" class="form-control req-nuovo">
                                     </div>
-
                                     <div class="col-md-4">
                                         <label class="form-label">Kilometraggio</label>
                                         <input type="number" name="km" class="form-control req-nuovo">
                                     </div>
-
                                 </div>
+
                                 <div class="row mb-3">
                                     <div class="col-md-3">
                                         <label class="form-label">Potenza (CV)</label>
                                         <input type="number" name="potenza_cv" class="form-control req-nuovo">
                                     </div>
-
                                     <div class="col-md-3">
                                         <label class="form-label">Peso (Kg)</label>
                                         <input type="number" step="0.1" name="peso" class="form-control req-nuovo">
                                     </div>
-
                                     <div class="col-md-3">
                                         <label class="form-label">Tipologia Motrice</label>
                                         <select name="tipologia_motrice" class="form-select req-nuovo">
@@ -94,7 +89,6 @@
                                             <option value="Autovettura">Autovettura</option>
                                         </select>
                                     </div>
-
                                     <div class="col-md-3">
                                         <label class="form-label">Classe Inquinamento</label>
                                         <select name="classe_inquinamento" class="form-select req-nuovo">
@@ -114,12 +108,10 @@
                                             <option value="8x4">8x4</option>
                                         </select>
                                     </div>
-
                                     <div class="col-md-4">
                                         <label class="form-label">Numero Assi</label>
                                         <input type="number" name="numero_assi" class="form-control req-nuovo" value="2">
                                     </div>
-
                                     <div class="col-md-4">
                                         <label class="form-label">Prezzo Stimato (€)</label>
                                         <input type="number" step="0.01" name="prezzo" class="form-control req-nuovo">
@@ -130,14 +122,14 @@
                                     <label class="form-label fw-bold text-danger">Numero Telaio (VIN) * 17 Caratteri</label>
                                     <input type="text" name="numero_telaio" class="form-control text-uppercase border-danger req-nuovo" maxlength="17">
                                 </div>
-
-                                <div class="mb-3">
-                                    <label class="form-label">Descrizione/Note Aggiuntive</label>
-                                    <textarea name="descrizione_veicolo" class="form-control" rows="2"></textarea>
-                                </div>
                             </div>
 
-                            <div class="mb-4">
+                            <div class="mb-3 p-3 bg-light border rounded">
+                                <label class="form-label fw-bold">Descrizione / Stato del Veicolo</label>
+                                <textarea name="descrizione_veicolo" class="form-control" rows="3" placeholder="Indica eventuali danni, usura, modifiche o lo stato generale del veicolo..." required></textarea>
+                            </div>
+
+                            <div class="mb-4 p-3 bg-light border rounded">
                                 <label class="form-label fw-bold">Data di Richiesta Valutazione</label>
                                 <input type="date" name="data" class="form-control" required>
                             </div>
@@ -153,8 +145,6 @@
         </div>
     </div>
 
-
-
     <script>
         function toggleForm() {
             var isNuovo = document.getElementById('tipoNuovo').checked;
@@ -169,7 +159,6 @@
                 inputNuovi.forEach(input => input.required = true);
                 selectEsistente.required = false;
             } else {
-
                 sezEsistente.classList.remove('d-none');
                 sezNuovo.classList.add('d-none');
                 inputNuovi.forEach(input => input.required = false);
