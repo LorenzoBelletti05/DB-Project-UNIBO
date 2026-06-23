@@ -6,11 +6,15 @@ from datetime import date, datetime
 main = Blueprint('main', __name__)
 
 # --- DECORATORE PER PROTEZIONE ROTTE ---
-def ruolo_richiesto(ruolo_necessario):
+def ruolo_richiesto(ruoli_necessari):
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
-            if 'ruolo' not in session or session['ruolo'] != ruolo_necessario:
+            # Se passi un singolo numero (es. 4), lo trasforma in lista [4]
+            # Se passi una lista (es. [4, 5]), la tiene così.
+            ruoli_ammessi = ruoli_necessari if isinstance(ruoli_necessari, list) else [ruoli_necessari]
+            
+            if 'ruolo' not in session or session['ruolo'] not in ruoli_ammessi:
                 flash("Non hai i permessi necessari per accedere a quest'area.", "danger")
                 return redirect('/login')
             return f(*args, **kwargs)
@@ -48,9 +52,11 @@ def login():
                 elif utente['Ruolo'] == 3:
                     return redirect('/salespearson')
                 elif utente['Ruolo'] == 2:
-                    return redirect('/dashboard_mechanic')    
+                    return redirect('/dashboard_mechanic')
                 elif utente['Ruolo'] == 1:
                     return redirect('/area_cliente')
+                elif utente['Ruolo'] == 5:
+                    return redirect('/employee_dashboard')
                 else:
                     return redirect('/')
             else:
@@ -111,7 +117,10 @@ def home():
     elif session['ruolo'] == 2:
         return redirect('/dashboard_mechanic')
     elif session['ruolo'] == 1: 
-        return redirect('/area_cliente')        
+        return redirect('/area_cliente')
+    elif session['ruolo'] == 5:
+        # USA IL TUO VERO NOME!
+        return redirect('/employee_dashboard') 
         
     return f"Benvenuto {session.get('nome', '')}! Il tuo ruolo ({session['ruolo']}) non ha ancora una home dedicata."
 
@@ -235,7 +244,7 @@ def dashboard_admin():
                            report_mensile=report_mensile, clienti_attivi=clienti_attivi)
 
 @main.route('/admin/toggle_utente/<int:id_persona>', methods=['POST'])
-@ruolo_richiesto(4)
+@ruolo_richiesto([4, 5])
 def toggle_utente(id_persona):
     try:
         oggi = date.today().strftime("%Y-%m-%d")
@@ -297,7 +306,7 @@ def area_cliente():
 
 # --- AMMINISTRAZIONE: UTENTI ---
 @main.route('/admin/utenti')
-@ruolo_richiesto(4)
+@ruolo_richiesto([4, 5])
 def gestione_utenti():
     response = supabase.table('PERSONA').select('*').execute()
     return render_template('admin/admin_user.html', utenti=response.data)
@@ -310,7 +319,7 @@ def logout():
 
 # --- AMMINISTRAZIONE: ASSUMI DIPENDENTE ---
 @main.route('/admin/add_crew', methods=['GET', 'POST'])
-@ruolo_richiesto(4) 
+@ruolo_richiesto([4, 5]) 
 def add_crew():
     if request.method == 'POST':
         ruolo_scelto = int(request.form.get('ruolo')) 
@@ -398,7 +407,7 @@ def add_crew():
 
 # --- AMMINISTRAZIONE: CATALOGO (MERGED) ---
 @main.route('/admin/catalog', methods=['GET', 'POST'])
-@ruolo_richiesto(4) 
+@ruolo_richiesto([4, 5]) 
 def gestione_catalogo():
     if request.method == 'POST':
         # Sotto-Azione A: Aggiungi Marca (Tua Funzione)
@@ -1370,7 +1379,7 @@ def transaction_wizard():
 
 # --- CALENDARIO TEST DRIVE (TEAM) ---
 @main.route('/test_drive_calendar', methods=['GET', 'POST'])
-@ruolo_richiesto(3) # Solo i Venditori possono gestire i test drive
+@ruolo_richiesto([3, 5]) # Solo i Venditori possono gestire i test drive
 def test_drive_calendar():
     if request.method == 'POST':
         try:
@@ -1450,7 +1459,7 @@ def test_drive_calendar():
 
 # --- ROTTA CORRETTA: CAMBIATO <int:id_veicolo> in <string:telaio> ---
 @main.route('/admin/toggle_veicolo/<string:telaio>', methods=['POST'])
-@ruolo_richiesto(4) 
+@ruolo_richiesto([4, 5]) 
 def toggle_veicolo(telaio):
     try:
         res = supabase.table('VEICOLO').select('Stato_Disponibilita').eq('NumeroTelaio', telaio).single().execute()
@@ -1469,7 +1478,7 @@ def toggle_veicolo(telaio):
     return redirect('/admin/catalog')
 
 @main.route('/admin/toggle_marca/<int:id_marca>', methods=['POST'])
-@ruolo_richiesto(4) 
+@ruolo_richiesto([4, 5]) 
 def toggle_marca(id_marca):
     try:
         res_marca = supabase.table('MARCA').select('Attiva').eq('ID_Marca', id_marca).single().execute()
@@ -1490,3 +1499,17 @@ def toggle_marca(id_marca):
         flash("Errore durante l'aggiornamento della marca.", "danger")
         
     return redirect('/admin/catalog')
+
+# --- ROTTA DASHBOARD IMPIEGATO ---
+@main.route('/employee_dashboard')
+@ruolo_richiesto(5)
+def dashboard_impiegato():
+    try:
+        # Prende giusto due statistiche veloci per abbellire la pagina
+        tot_utenti = len(supabase.table('PERSONA').select('ID_Persona').execute().data or [])
+        tot_veicoli = len(supabase.table('VEICOLO').select('NumeroTelaio').neq('Stato_Disponibilita', 'A').execute().data or [])
+        tot_test = len(supabase.table('TEST_DRIVE').select('ID_TestDrive').execute().data or [])
+    except Exception as e:
+        tot_utenti, tot_veicoli, tot_test = 0, 0, 0
+
+    return render_template('employee/employee_dashboard.html', tot_utenti=tot_utenti, tot_veicoli=tot_veicoli, tot_test=tot_test)
