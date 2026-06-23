@@ -916,7 +916,7 @@ def approve_trade_in():
             return redirect('/admin_dashboard')
             
         except Exception as e:
-            print(f"🔴 ERRORE APPROVAZIONE ADMIN: {str(e)}")
+            print(f"ERRORE APPROVAZIONE ADMIN: {str(e)}")
             flash(f"Supabase ha rifiutato l'approvazione. Errore: {str(e)}", "danger")
             return redirect('/admin/approve_trade_in')
 
@@ -961,7 +961,7 @@ def approve_trade_in():
         return render_template('admin/approve_trade_in.html', perizie=perizie_completate)
         
     except Exception as e:
-        print(f"🔴 ERRORE LETTURA PERIZIE ADMIN: {str(e)}")
+        print(f"ERRORE LETTURA PERIZIE ADMIN: {str(e)}")
         flash(f"Impossibile caricare l'elenco delle perizie: {str(e)}", "danger")
         return redirect('/admin_dashboard')
 
