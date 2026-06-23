@@ -164,10 +164,15 @@
     </div>
 
     <div class="mt-4">
-        <a href="/admin_dashboard" class="text-decoration-none fw-bold text-secondary text-primary-hover">
-            Torna alla Dashboard Principale
-        </a>
+        {% if session.get('ruolo') == 4 %}
+            <a href="/admin_dashboard" class="text-decoration-none fw-bold text-secondary text-primary-hover">
+                Torna alla Dashboard Principale
+            </a>
+        {% elif session.get('ruolo') == 5 %}
+            <a href="/employee_dashboard" class="text-decoration-none fw-bold text-secondary text-primary-hover">
+                Torna alla Dashboard Principale
+            </a>
+        {% endif %}
     </div>
-
 </div>
 {% endblock %}
