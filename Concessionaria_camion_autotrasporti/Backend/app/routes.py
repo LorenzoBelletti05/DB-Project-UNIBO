@@ -23,41 +23,34 @@ def login():
     if request.method == 'POST':
         email = request.form.get('email')
         password = request.form.get('password')
-
         try:
             response = supabase.table('PERSONA').select('*').eq('Mail', email).execute()
             utenti = response.data
-
             if not utenti:
                 flash("Account inesistente. Registrati.", "warning")
                 return redirect('/login')
                 
             utente = utenti[0]
+            
+            # CONTROLLO BLOCCO ACCOUNT (Verifica se la colonna Stato_Account è 'B')
+            if utente.get('Stato_Account') == 'B':
+                flash("Il tuo account è stato bloccato dall'amministratore.", "danger")
+                return redirect('/login')
+
             if utente['Password'] == password:
                 session['user_id'] = utente['ID_Persona']
                 session['ruolo'] = utente['Ruolo'] 
                 session['nome'] = utente['Nome']
-
-                # SMISTAMENTO AUTOMATICO DOPO IL LOGIN (COMPLETO)
-                if utente['Ruolo'] == 4:
-                    return redirect('/dashboard_admin')
-                elif utente['Ruolo'] == 3:
-                    return redirect('/salespearson')
-                elif utente['Ruolo'] == 2:
-                    return redirect('/dashboard_mechanic')    
-                elif utente['Ruolo'] == 1:
-                    return redirect('/area_cliente')
-                else:
-                    return redirect('/')
+                if utente['Ruolo'] == 4: return redirect('/admin_dashboard')
+                elif utente['Ruolo'] == 3: return redirect('/salespearson')
+                elif utente['Ruolo'] == 2: return redirect('/dashboard_meccanico')    
+                elif utente['Ruolo'] == 1: return redirect('/area_cliente')
             else:
                 flash("Password errata.", "danger")
                 return redirect('/login')
-
         except Exception as e:
-            print(f"ERRORE LOGIN: {str(e)}")
             flash("Errore di connessione.", "danger")
             return redirect('/login')
-
     return render_template('login/login.html')
 
 # --- ROTTA REGISTRAZIONE ---
@@ -104,7 +97,7 @@ def home():
         return redirect('/login')
         
     if session['ruolo'] == 4: 
-        return redirect('/dashboard_admin')     
+        return redirect('/admin_dashboard')     
     elif session['ruolo'] == 3:                
         return redirect('/salespearson')         
     elif session['ruolo'] == 2:
@@ -119,59 +112,81 @@ def home():
 @ruolo_richiesto(4) 
 def dashboard_admin():
     try:
-        # ==========================================
-        # SEZIONE 1: KPI (Contatori)
-        # ==========================================
+        # --- DATI BASE ---
         tutti_veicoli = supabase.table('VEICOLO').select('*').execute().data
-        veicoli_catalogo = len([v for v in tutti_veicoli if v.get('Stato_Disponibilita') != 'A'])
+        veicoli_catalogo = len([v for v in tutti_veicoli if v.get('Stato_Disponibilita') not in ['A', 'E']])
         
         res_compiti = supabase.table('COMPITO').select('Stato').execute().data
         interventi_aperti = len([c for c in res_compiti if c.get('Stato') != 'Concluso'])
         
-        res_val = supabase.table('VALUTAZIONE_USATO').select('ID_Usato').execute().data
+        res_val = supabase.table('VALUTAZIONE_USATO').select('ID_Usato, Data_Inizio').execute().data
         res_app = supabase.table('Approvazione_PV').select('ID_Usato').execute().data
         id_approvati = [a['ID_Usato'] for a in res_app]
         valutazioni_sospeso = len([v for v in res_val if v['ID_Usato'] not in id_approvati])
 
-        # Prepariamo le mappe base per non fare query continue
-        persone = supabase.table('PERSONA').select('ID_Persona, Nome, Cognome').execute().data
+        persone = supabase.table('PERSONA').select('ID_Persona, Nome, Cognome, Ruolo').execute().data
         mappa_persone = {p['ID_Persona']: f"{p['Nome']} {p['Cognome']}" for p in persone}
-        
         mappa_telaio_modello = {v['NumeroTelaio']: v.get('Modello', 'Ignoto') for v in tutti_veicoli}
 
-        # ==========================================
-        # REQUISITO 5.1.17: VENDITORI (Performance)
-        # ==========================================
-        vendite = supabase.table('VENDITA').select('ID_Persona, ID_Contratto').execute().data
+        # --- REQUISITO: REPORT MENSILE (Giugno 2026) ---
+        mese_corrente = "2026-06"
+        vendite = supabase.table('VENDITA').select('*').execute().data
+        contratti = supabase.table('CONTRATTO').select('*').execute().data
+        prenotazioni = supabase.table('PRENOTAZIONE').select('*').execute().data
+
+        # Conteggi filtrati per il mese corrente
+        vendite_mese = len([v for v in vendite if v.get('Data_Vendita', '').startswith(mese_corrente)])
+        noleggi_mese = len([c for c in contratti if c.get('Tipo_Contratto') == 'Noleggio' and c.get('Data_Stipula', '').startswith(mese_corrente)])
+        valutazioni_mese = len([v for v in res_val if v.get('Data_Inizio', '').startswith(mese_corrente)])
+        interventi_mese = len([p for p in prenotazioni if p.get('Data_Prenotazione', '').startswith(mese_corrente)])
+
+        report_mensile = {
+            "vendite": vendite_mese, "noleggi": noleggi_mese, 
+            "valutazioni": valutazioni_mese, "interventi": interventi_mese
+        }
+
+        # --- REQUISITO: CLIENTI PIÙ ATTIVI (Classifica in memoria) ---
+        # Uniamo gli ID_Persona di chi ha comprato, noleggiato o prenotato in officina
+        attivita_clienti = {}
+        
+        # 1. Da Contratti (Acquisti e Noleggi)
+        for c in contratti:
+            id_c = c.get('ID_Persona')
+            if id_c: attivita_clienti[id_c] = attivita_clienti.get(id_c, 0) + 1
+        # 2. Da Prenotazioni Officina
+        for p in prenotazioni:
+            id_c = p.get('ID_Persona')
+            if id_c: attivita_clienti[id_c] = attivita_clienti.get(id_c, 0) + 1
+
+        clienti_attivi = []
+        for id_c, conteggio in attivita_clienti.items():
+            if conteggio >= 1: # Soglia Z (es. almeno 1 attività)
+                clienti_attivi.append({
+                    "nominativo": mappa_persone.get(id_c, f"Cliente ID {id_c}"),
+                    "totale_operazioni": conteggio
+                })
+        # Ordiniamo i clienti dal più attivo
+        clienti_attivi = sorted(clienti_attivi, key=lambda x: x['totale_operazioni'], reverse=True)[:5]
+
+        # --- GRAFICI PRECEDENTI (Venditori, Modelli, Meccanici, Rifiuti) ---
         conteggio_venditori = {}
         for vendita in vendite:
-            id_venditore = vendita.get('ID_Persona')
-            if id_venditore:
-                nome = mappa_persone.get(id_venditore, f"ID {id_venditore}")
+            id_v = vendita.get('ID_Persona')
+            if id_v:
+                nome = mappa_persone.get(id_v, f"ID {id_v}")
                 conteggio_venditori[nome] = conteggio_venditori.get(nome, 0) + 1
-                
         ord_venditori = sorted(conteggio_venditori.items(), key=lambda x: x[1], reverse=True)
-        labels_venditori = [v[0] for v in ord_venditori]
-        valori_venditori = [v[1] for v in ord_venditori]
+        labels_venditori = [v[0] for v in ord_venditori]; valori_venditori = [v[1] for v in ord_venditori]
 
-        # ==========================================
-        # REQUISITO 5.1.16: MODELLI PIU VENDUTI
-        # ==========================================
         contratti_venduti_ids = [v['ID_Contratto'] for v in vendite if v.get('ID_Contratto') is not None]
         conteggio_modelli = {}
         for veicolo in tutti_veicoli:
             if veicolo.get('ID_Contratto') in contratti_venduti_ids:
                 mod = veicolo.get('Modello', 'Ignoto')
                 conteggio_modelli[mod] = conteggio_modelli.get(mod, 0) + 1
-                
         ord_modelli = sorted(conteggio_modelli.items(), key=lambda x: x[1], reverse=True)
-        labels_modelli = [m[0] for m in ord_modelli]
-        valori_modelli = [m[1] for m in ord_modelli]
+        labels_modelli = [m[0] for m in ord_modelli]; valori_modelli = [m[1] for m in ord_modelli]
 
-        # ==========================================
-        # REQUISITO 5.1.18: MECCANICI PIU ATTIVI
-        # ==========================================
-        # Risaliamo da COMPITO a PERSONA per vedere il carico di lavoro
         tutti_i_compiti = supabase.table('COMPITO').select('ID_Persona').execute().data
         conteggio_meccanici = {}
         for compito in tutti_i_compiti:
@@ -179,46 +194,66 @@ def dashboard_admin():
             if id_mecc:
                 nome_mecc = mappa_persone.get(id_mecc, f"ID {id_mecc}")
                 conteggio_meccanici[nome_mecc] = conteggio_meccanici.get(nome_mecc, 0) + 1
-        
         ord_meccanici = sorted(conteggio_meccanici.items(), key=lambda x: x[1], reverse=True)
-        labels_meccanici = [m[0] for m in ord_meccanici]
-        valori_meccanici = [m[1] for m in ord_meccanici]
+        labels_meccanici = [m[0] for m in ord_meccanici]; valori_meccanici = [m[1] for m in ord_meccanici]
 
-        # ==========================================
-        # REQUISITO 5.1.19: MODELLI CON ALTO RIFIUTO
-        # ==========================================
-        # Risaliamo dall'esito negativo al modello del veicolo usato
         esiti = supabase.table('Esito_MV').select('ID_Usato, Esito_Meccanico').execute().data
-        valutazioni = supabase.table('VALUTAZIONE_USATO').select('ID_Usato, NumeroTelaio').execute().data
-        mappa_usato_telaio = {v['ID_Usato']: v['NumeroTelaio'] for v in valutazioni}
-
+        valutazioni_tab = supabase.table('VALUTAZIONE_USATO').select('ID_Usato, NumeroTelaio').execute().data
+        mappa_usato_telaio = {v['ID_Usato']: v['NumeroTelaio'] for v in valutazioni_tab}
         rifiuti_modelli = {}
         for esito in esiti:
-            # Assumiamo che 'N' (Negativo) o 'R' (Rifiutato) sia il carattere di scarto
             if esito.get('Esito_Meccanico') in ['N', 'R']:
                 telaio = mappa_usato_telaio.get(esito.get('ID_Usato'))
                 if telaio:
                     mod = mappa_telaio_modello.get(telaio, 'Ignoto')
                     rifiuti_modelli[mod] = rifiuti_modelli.get(mod, 0) + 1
-        
         ord_rifiuti = sorted(rifiuti_modelli.items(), key=lambda x: x[1], reverse=True)
-        labels_rifiuti = [r[0] for r in ord_rifiuti]
-        valori_rifiuti = [r[1] for r in ord_rifiuti]
+        labels_rifiuti = [r[0] for r in ord_rifiuti]; valori_rifiuti = [r[1] for r in ord_rifiuti]
 
     except Exception as e:
         print(f"\n❌ ERRORE DASHBOARD ADMIN: {str(e)}\n")
         veicoli_catalogo, interventi_aperti, valutazioni_sospeso = 0, 0, 0
         labels_modelli, valori_modelli, labels_venditori, valori_venditori = [], [], [], []
         labels_meccanici, valori_meccanici, labels_rifiuti, valori_rifiuti = [], [], [], []
+        report_mensile = {"vendite": 0, "noleggi": 0, "valutazioni": 0, "interventi": 0}
+        clienti_attivi = []
 
     return render_template('admin/admin_dashboard.html', 
-                           veicoli_catalogo=veicoli_catalogo,
-                           interventi_aperti=interventi_aperti,
-                           valutazioni_sospeso=valutazioni_sospeso,
+                           veicoli_catalogo=veicoli_catalogo, interventi_aperti=interventi_aperti, valutazioni_sospeso=valutazioni_sospeso,
                            labels_modelli=labels_modelli, valori_modelli=valori_modelli,
                            labels_venditori=labels_venditori, valori_venditori=valori_venditori,
                            labels_meccanici=labels_meccanici, valori_meccanici=valori_meccanici,
-                           labels_rifiuti=labels_rifiuti, valori_rifiuti=valori_rifiuti)
+                           labels_rifiuti=labels_rifiuti, valori_rifiuti=valori_rifiuti,
+                           report_mensile=report_mensile, clienti_attivi=clienti_attivi)
+
+@main.route('/admin/toggle_utente/<int:id_persona>', methods=['POST'])
+@ruolo_richiesto(4)
+def toggle_utente(id_persona):
+    try:
+        # Usiamo execute() normale senza .single() per evitare crash di Supabase
+        res = supabase.table('PERSONA').select('Stato_Account').eq('ID_Persona', id_persona).execute()
+        
+        if not res.data:
+            flash("Utente non trovato nel sistema.", "danger")
+            return redirect('/admin/utenti')
+            
+        stato_attuale = res.data[0].get('Stato_Account', 'A')
+        if not stato_attuale:
+            stato_attuale = 'A'
+            
+        # Cambiamo lo stato: se non è 'B' (Bloccato) lo facciamo diventare 'B', altrimenti torna 'A' (Attivo)
+        nuovo_stato = 'B' if stato_attuale != 'B' else 'A'
+        
+        supabase.table('PERSONA').update({'Stato_Account': nuovo_stato}).eq('ID_Persona', id_persona).execute()
+        
+        azione = "bloccato" if nuovo_stato == 'B' else "riattivato  "
+        flash(f"Account aggiornato con successo: {azione}.", "success")
+        
+    except Exception as e:
+        print(f"ERRORE BLOCCO UTENTE: {e}")
+        flash(f"Errore durante la modifica dell'account: {str(e)}", "danger")
+        
+    return redirect('/admin/utenti')
 
 # --- ROTTA AREA CLIENTE ---
 @main.route('/area_cliente')
@@ -264,7 +299,7 @@ def add_crew():
             }
             supabase.table('PERSONA').insert(nuovo_dipendente).execute()
             flash(f"Dipendente {nuovo_dipendente['Nome']} aggiunto con successo!", "success")
-            return redirect('/dashboard_admin')
+            return redirect('/admin_dashboard')
         except Exception as e:
             print(f"ERRORE ASSUNZIONE: {str(e)}")
             flash("Errore durante l'inserimento nel database.", "danger")
@@ -735,7 +770,7 @@ def approve_trade_in():
             else:
                 flash("Proposta rifiutata definitivamente.", "warning")
                 
-            return redirect('/dashboard_admin')
+            return redirect('/admin_dashboard')
             
         except Exception as e:
             print(f"🔴 ERRORE APPROVAZIONE ADMIN: {str(e)}")
@@ -785,7 +820,7 @@ def approve_trade_in():
     except Exception as e:
         print(f"🔴 ERRORE LETTURA PERIZIE ADMIN: {str(e)}")
         flash(f"Impossibile caricare l'elenco delle perizie: {str(e)}", "danger")
-        return redirect('/dashboard_admin')
+        return redirect('/admin_dashboard')
 
 # --- AREA CLIENTE: IL MIO GARAGE ---
 @main.route('/my_vehicles')

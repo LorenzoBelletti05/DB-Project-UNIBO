@@ -69,6 +69,50 @@
             </div>
         </div>
     </div>
+
+    <div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-dark text-white fw-bold pt-3 pb-2">Performance Mese Corrente (Giugno 2026)</div>
+            <div class="card-body bg-light">
+                <ul class="list-group list-group-flush rounded-3">
+                    <li class="list-group-item d-flex justify-content-between align-items-center">Veicoli Venduti <span class="badge bg-primary rounded-pill">{{ report_mensile.vendites }}</span></li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">Veicoli Noleggiati <span class="badge bg-info text-dark rounded-pill">{{ report_mensile.noleggi }}</span></li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">Valutazioni Usato <span class="badge bg-success rounded-pill">{{ report_mensile.valutazioni }}</span></li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">Manutenzioni Officina <span class="badge bg-warning text-dark rounded-pill">{{ report_mensile.interventi }}</span></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-primary text-white fw-bold pt-3 pb-2">Classifica Clienti Più Attivi</div>
+                <div class="card-body p-0">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Cliente</th>
+                                <th class="text-end">Operazioni Totali (Acquisti/Noleggi/Officina)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cliente in clienti_attivi %}
+                            <tr>
+                                <td class="fw-bold text-secondary">{{ cliente.nominativo }}</td>
+                                <td class="text-end"><span class="badge bg-dark fs-6">{{ cliente.totale_operazioni }}</span></td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="2" class="text-center py-4 text-muted">Nessuna attività registrata in questo periodo.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
