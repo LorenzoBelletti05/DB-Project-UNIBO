@@ -259,7 +259,8 @@ def toggle_utente(id_persona):
             nuovo_blocco = {
                 "Data_Inizio": oggi,
                 "Data_Fine": None,
-                "Motivo": motivo_blocco  # <-- INSERIAMO IL MOTIVO VERO!
+                "Motivo": motivo_blocco,
+                "id_persona": id_persona  # 👈 DEVI AGGIUNGERE SOLO QUESTA RIGA!
             }
             res_blocco = supabase.table('BLOCCO').insert(nuovo_blocco).execute()
             id_blocco_generato = res_blocco.data[0]['ID_Blocco']
