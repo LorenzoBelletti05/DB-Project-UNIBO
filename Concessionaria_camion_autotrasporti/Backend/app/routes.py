@@ -1191,28 +1191,24 @@ def get_optionals(numero_telaio):
         print(f"ERRORE API OPTIONAL: {e}")
         return jsonify([])
 
-# --- DASHBOARD VENDITORE (TEAM) ---
+# --- DASHBOARD VENDITORE ---
 @main.route('/salespearson', methods=['GET'])
-@ruolo_richiesto(3)  # 3 = Venditore
+@ruolo_richiesto(3)
 def salespearson_dashboard():
     try:
-        # 1. Contatore veicoli in catalogo (non archiviati)
         res_veicoli = supabase.table('VEICOLO').select('NumeroTelaio, Modello').neq('Stato_Disponibilita', 'A').execute()
         veicoli_disponibili = len(res_veicoli.data)
-        
-        # Prepariamo la mappa dei veicoli per tradurre il telaio nel nome del Modello
+
         tutti_veicoli = supabase.table('VEICOLO').select('NumeroTelaio, Modello').execute().data
         mappa_veicoli = {v['NumeroTelaio']: v['Modello'] for v in tutti_veicoli}
 
-        # Prepariamo la mappa dei clienti per tradurre l'ID nel Nome e Cognome
         clienti = supabase.table('PERSONA').select('ID_Persona, Nome, Cognome').eq('Ruolo', 1).execute().data
         mappa_clienti = {c['ID_Persona']: f"{c['Nome']} {c['Cognome']}" for c in clienti}
 
         id_venditore = session['user_id']
 
-        # 2. TRATTATIVE (Preventivi Aperti) assegnati a QUESTO venditore
         preventivi_raw = supabase.table('PREVENTIVO').select('*').eq('ID_Persona', id_venditore).eq('Stato_PreventivoChiuso', 'N').execute().data
-        
+
         quotes = []
         for p in preventivi_raw:
             quotes.append({
@@ -1221,13 +1217,19 @@ def salespearson_dashboard():
                 "veicolo": mappa_veicoli.get(p.get('NumeroTelaio'), "Veicolo Ignoto")
             })
 
-        # 3. TEST DRIVE assegnati a QUESTO venditore in supervisione
         test_drives_raw = supabase.table('TEST_DRIVE').select('*').eq('Sup_ID_Persona', id_venditore).execute().data
+
+        slot_orari = [
+            {"ID_Slot": 1, "Ora_Inizio": "09:00", "Ora_Fine": "10:00"},
+            {"ID_Slot": 2, "Ora_Inizio": "10:00", "Ora_Fine": "11:00"},
+            {"ID_Slot": 3, "Ora_Inizio": "11:00", "Ora_Fine": "12:00"},
+            {"ID_Slot": 4, "Ora_Inizio": "15:00", "Ora_Fine": "16:00"},
+            {"ID_Slot": 5, "Ora_Inizio": "16:00", "Ora_Fine": "17:00"},
+            {"ID_Slot": 6, "Ora_Inizio": "17:00", "Ora_Fine": "18:00"}
+        ]
         
-        slot_orari = supabase.table('SLOT_ORARIO').select('*').execute().data
         mappa_slot = {s['ID_Slot']: f"{s['Ora_Inizio']} - {s['Ora_Fine']}" for s in slot_orari}
-        
-        # Tabella ponte per trovare a quale auto si riferisce il test drive
+
         utilizzo_td = supabase.table('Utilizzo_TV').select('*').execute().data
         mappa_utilizzo = {u['ID_TestDrive']: u['NumeroTelaio'] for u in utilizzo_td}
 
@@ -1247,36 +1249,50 @@ def salespearson_dashboard():
         print(f"ERRORE DASHBOARD VENDITORE: {e}")
         veicoli_disponibili, quotes, test_drives = 0, [], []
 
-    return render_template('salespearson_dashboard.html', 
-                           quotes=quotes, 
-                           test_drives=test_drives, 
+    return render_template('salespearson_dashboard.html',
+                           quotes=quotes,
+                           test_drives=test_drives,
                            stock_count=veicoli_disponibili)
 
 # --- TRANSACTION WIZARD VENDITORE (TEAM) ---
 @main.route('/transaction_wizard', methods=['GET', 'POST'])
-@ruolo_richiesto(3) # Solo per i Venditori
+@ruolo_richiesto(3)
 def transaction_wizard():
     if request.method == 'POST':
         try:
-            # 1. Recupero Dati dal Form
             id_cliente = int(request.form.get('id_cliente'))
             numero_telaio = request.form.get('numero_telaio')
-            tipo_contratto = request.form.get('contract_type') # Vendita, Noleggio, Finanziamento, Leasing
+            tipo_contratto = request.form.get('contract_type') 
             data_inizio = request.form.get('start_date')
-            data_fine = request.form.get('end_date') or data_inizio # Fallback
+            data_fine = request.form.get('end_date') or data_inizio 
             metodo_pagamento = request.form.get('payment_method')
             id_venditore = session['user_id']
             oggi = datetime.now().strftime("%Y-%m-%d")
             ora = datetime.now().strftime("%H:%M")
 
-            # 2. Recupero prezzo del veicolo per il contratto
             res_veicolo = supabase.table('VEICOLO').select('Prezzo_Base').eq('NumeroTelaio', numero_telaio).execute()
             prezzo = res_veicolo.data[0]['Prezzo_Base'] if res_veicolo.data else 0.0
 
-            # 3. Creazione METODO_PAGAMENTO (Ci serve l'ID per il contratto)
+            # --- FIX PUNTO 3: SALVATAGGIO PREVENTIVO ---
+            if tipo_contratto == 'Preventivo':
+                max_prev = supabase.table('PREVENTIVO').select('ID_Preventivo').order('ID_Preventivo', desc=True).limit(1).execute()
+                id_prev = max_prev.data[0]['ID_Preventivo'] + 1 if max_prev.data else 1
+                
+                nuovo_prev = {
+                    "ID_Preventivo": id_prev,
+                    "ID_Persona": id_venditore,
+                    "Pos_ID_Persona": id_cliente,
+                    "NumeroTelaio": numero_telaio,
+                    "Stato_PreventivoChiuso": 'N'
+                }
+                supabase.table('PREVENTIVO').insert(nuovo_prev).execute()
+                flash("Preventivo salvato! La trattativa è ora visibile nella tua Dashboard.", "success")
+                return redirect('/salespearson')
+            # ---------------------------------------------
+
             max_pag = supabase.table('METODO_PAGAMENTO').select('ID_Pagamento').order('ID_Pagamento', desc=True).limit(1).execute()
             id_pag = max_pag.data[0]['ID_Pagamento'] + 1 if max_pag.data else 1
-            
+
             supabase.table('METODO_PAGAMENTO').insert({
                 "ID_Pagamento": id_pag,
                 "Circuito": "Circuito Standard",
@@ -1285,10 +1301,9 @@ def transaction_wizard():
                 "Iban": "IT00000000000000000000000000000000"
             }).execute()
 
-            # 4. Creazione CONTRATTO
             max_contr = supabase.table('CONTRATTO').select('ID_Contratto').order('ID_Contratto', desc=True).limit(1).execute()
             id_contratto = max_contr.data[0]['ID_Contratto'] + 1 if max_contr.data else 1
-            
+
             nuovo_contratto = {
                 "ID_Contratto": id_contratto,
                 "Tipo_Contratto": tipo_contratto[:14],
@@ -1303,7 +1318,6 @@ def transaction_wizard():
             }
             supabase.table('CONTRATTO').insert(nuovo_contratto).execute()
 
-            # 5. SPECIALIZZAZIONE CONTRATTO IN BASE ALLA SCELTA (Query 5.1.9)
             if tipo_contratto == 'Noleggio':
                 supabase.table('NOLEGGIO').insert({
                     "ID_Contratto": id_contratto,
@@ -1313,7 +1327,7 @@ def transaction_wizard():
                     "Prezzo_km": 15,
                     "Km_totali": 10000
                 }).execute()
-            
+
             elif tipo_contratto == 'Vendita':
                 max_v = supabase.table('VENDITA').select('ID_Vendita').order('ID_Vendita', desc=True).limit(1).execute()
                 id_vendita = max_v.data[0]['ID_Vendita'] + 1 if max_v.data else 1
@@ -1325,17 +1339,17 @@ def transaction_wizard():
                     "Ora_Vendita": ora,
                     "ID_Persona": id_venditore
                 }).execute()
-            
+
             elif tipo_contratto == 'Finanziamento':
                 supabase.table('FINANZIAMENTO').insert({
                     "ID_Contratto": id_contratto,
                     "Assicurazione_Credito": 1000,
                     "Spese_Apertura_Pratica": 300,
-                    "Anticipo": prezzo * 0.20, # Anticipo 20%
+                    "Anticipo": prezzo * 0.20,
                     "TAEG": 6.5,
                     "TAN": 5.0
                 }).execute()
-                
+
             elif tipo_contratto == 'Leasing':
                 max_l = supabase.table('LEASING').select('ID_Leasing').order('ID_Leasing', desc=True).limit(1).execute()
                 id_leasing = max_l.data[0]['ID_Leasing'] + 1 if max_l.data else 1
@@ -1350,7 +1364,6 @@ def transaction_wizard():
                     "Prezzo_Riscatto": prezzo * 0.40
                 }).execute()
 
-            # 6. AGGIORNAMENTO VEICOLO (Riservato/Archiviato)
             supabase.table('VEICOLO').update({
                 'ID_Contratto': id_contratto,
                 'Stato_Disponibilita': 'A'
@@ -1364,7 +1377,6 @@ def transaction_wizard():
             flash(f"Errore durante l'operazione. Dettagli: {e}", "danger")
             return redirect('/transaction_wizard')
 
-    # --- GET: Caricamento dati per riempire i menu a tendina ---
     try:
         clienti = supabase.table('PERSONA').select('*').eq('Ruolo', 1).execute().data
         veicoli = supabase.table('VEICOLO').select('*').neq('Stato_Disponibilita', 'A').execute().data
@@ -1379,18 +1391,16 @@ def transaction_wizard():
 
 # --- CALENDARIO TEST DRIVE (TEAM) ---
 @main.route('/test_drive_calendar', methods=['GET', 'POST'])
-@ruolo_richiesto([3, 5]) # Solo i Venditori possono gestire i test drive
+@ruolo_richiesto([3, 5])
 def test_drive_calendar():
     if request.method == 'POST':
         try:
-            # 1. Raccogliamo i dati dal form modale
             data_td = request.form.get('data_test')
             id_slot = int(request.form.get('id_slot'))
             id_cliente = int(request.form.get('id_cliente'))
             numero_telaio = request.form.get('numero_telaio')
-            id_venditore = session['user_id'] # Il venditore loggato
-            
-            # 2. Inserimento in TEST_DRIVE
+            id_venditore = session['user_id'] 
+
             nuovo_td = {
                 "Data": data_td,
                 "ID_Slot": id_slot,
@@ -1398,32 +1408,38 @@ def test_drive_calendar():
                 "Sup_ID_Persona": id_venditore
             }
             res_td = supabase.table('TEST_DRIVE').insert(nuovo_td).execute()
-            
-            # 3. Inserimento nella tabella ponte Utilizzo_TV (Lega l'auto al Test Drive)
+
             if res_td.data:
                 id_generato = res_td.data[0]['ID_TestDrive']
                 supabase.table('Utilizzo_TV').insert({
                     "NumeroTelaio": numero_telaio,
                     "ID_TestDrive": id_generato
                 }).execute()
-                
+
             flash("Test Drive prenotato con successo!", "success")
         except Exception as e:
             print(f"ERRORE PRENOTAZIONE TEST DRIVE: {e}")
             flash("Errore durante il salvataggio nel database.", "danger")
-            
+
         return redirect('/test_drive_calendar')
 
-    # --- FASE DI GET: CARICAMENTO DATI PER IL CALENDARIO ---
     try:
         clienti = supabase.table('PERSONA').select('*').eq('Ruolo', 1).execute().data
         veicoli = supabase.table('VEICOLO').select('*').neq('Stato_Disponibilita', 'A').execute().data
-        slot_orari = supabase.table('SLOT_ORARIO').select('*').execute().data
         
+        slot_orari = [
+            {"ID_Slot": 1, "Ora_Inizio": "09:00", "Ora_Fine": "10:00"},
+            {"ID_Slot": 2, "Ora_Inizio": "10:00", "Ora_Fine": "11:00"},
+            {"ID_Slot": 3, "Ora_Inizio": "11:00", "Ora_Fine": "12:00"},
+            {"ID_Slot": 4, "Ora_Inizio": "15:00", "Ora_Fine": "16:00"},
+            {"ID_Slot": 5, "Ora_Inizio": "16:00", "Ora_Fine": "17:00"},
+            {"ID_Slot": 6, "Ora_Inizio": "17:00", "Ora_Fine": "18:00"}
+        ]
+
         prenotazioni = supabase.table('TEST_DRIVE').select('*').execute().data
         utilizzo = supabase.table('Utilizzo_TV').select('*').execute().data
         tutti_veicoli = supabase.table('VEICOLO').select('NumeroTelaio, Modello').execute().data
-        
+
         mappa_slot = {s['ID_Slot']: s for s in slot_orari}
         mappa_clienti = {c['ID_Persona']: f"{c['Nome']} {c['Cognome']}" for c in clienti}
         mappa_veicoli = {v['NumeroTelaio']: v['Modello'] for v in tutti_veicoli}
@@ -1433,10 +1449,10 @@ def test_drive_calendar():
         for p in prenotazioni:
             slot = mappa_slot.get(p['ID_Slot'])
             if not slot: continue
-            
+
             start_time = f"{p['Data']}T{slot['Ora_Inizio']}:00"
             end_time = f"{p['Data']}T{slot['Ora_Fine']}:00"
-            
+
             cliente_nome = mappa_clienti.get(p['ID_Persona'], "Cliente Ignoto")
             telaio = mappa_utilizzo.get(p['ID_TestDrive'], "")
             modello = mappa_veicoli.get(telaio, "Veicolo Ignoto")
@@ -1448,15 +1464,14 @@ def test_drive_calendar():
                 "backgroundColor": "#dc3545",
                 "borderColor": "#dc3545"
             })
-            
+
     except Exception as e:
         print(f"ERRORE CARICAMENTO CALENDARIO: {e}")
         clienti, veicoli, slot_orari, events = [], [], [], []
 
-    return render_template('test_drive_calendar.html', 
-                           clienti=clienti, veicoli=veicoli, 
+    return render_template('test_drive_calendar.html',
+                           clienti=clienti, veicoli=veicoli,
                            slot_orari=slot_orari, events=events)
-
 # --- ROTTA CORRETTA: CAMBIATO <int:id_veicolo> in <string:telaio> ---
 @main.route('/admin/toggle_veicolo/<string:telaio>', methods=['POST'])
 @ruolo_richiesto([4, 5]) 
