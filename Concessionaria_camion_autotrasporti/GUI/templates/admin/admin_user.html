@@ -108,22 +108,46 @@
                             </td>
                             
                             <td class="text-end pe-4">
-                                {% if utente.ID_Persona == session['user_id'] %}
-                                    <span class="badge bg-light text-muted border py-2 px-3 rounded-2 fw-medium">Il Tuo Account</span>
+    {% if utente.ID_Persona == session['user_id'] %}
+        <span class="badge bg-light text-muted border py-2 px-3 rounded-2 fw-medium">Il Tuo Account</span>
+    {% else %}
+        {% if utente.Stato_Account == 'B' %}
+            <form method="POST" action="/admin/toggle_utente/{{ utente.ID_Persona }}" style="display:inline;">
+                <button type="submit" class="btn btn-sm btn-success btn-action shadow-sm">
+                    Sblocca
+                </button>
+            </form>
                                 {% else %}
-                                    <form method="POST" action="/admin/toggle_utente/{{ utente.ID_Persona }}" style="display:inline;">
-                                        {% if utente.Stato_Account == 'B' %}
-                                            <button type="submit" class="btn btn-sm btn-success btn-action shadow-sm">
-                                                Sblocca
-                                            </button>
-                                        {% else %}
-                                            <button type="submit" class="btn btn-sm btn-outline-danger btn-action">
-                                                Blocca Account
-                                            </button>
-                                        {% endif %}
-                                    </form>
+                                    <button type="button" class="btn btn-sm btn-outline-danger btn-action" data-bs-toggle="modal" data-bs-target="#modalBlocca{{ utente.ID_Persona }}">
+                                        Blocca Account
+                                    </button>
+
+                                    <div class="modal fade text-start" id="modalBlocca{{ utente.ID_Persona }}" tabindex="-1" aria-hidden="true">
+                                        <div class="modal-dialog modal-dialog-centered">
+                                            <div class="modal-content border-0 shadow">
+                                                <div class="modal-header bg-danger text-white">
+                                                    <h5 class="modal-title fw-bold">Sospensione Account</h5>
+                                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <form method="POST" action="/admin/toggle_utente/{{ utente.ID_Persona }}">
+                                                    <div class="modal-body p-4">
+                                                        <p class="mb-3 text-dark">Stai per bloccare l'accesso a <strong>{{ utente.Nome }} {{ utente.Cognome }}</strong>. Specifica il motivo del blocco (verrà registrato nello storico):</p>
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-bold text-muted small text-uppercase">Motivo del blocco</label>
+                                                            <textarea name="motivo" class="form-control" rows="3" placeholder="Es: Insolvenza, violazione policy..." required></textarea>
+                                                        </div>
+                                                    </div>
+                                                    <div class="modal-footer bg-light">
+                                                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
+                                                        <button type="submit" class="btn btn-danger fw-bold">Conferma Blocco</button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
                                 {% endif %}
-                            </td>
+                            {% endif %}
+                        </td>
                         </tr>
                         {% else %}
                         <tr>
@@ -141,7 +165,7 @@
 
     <div class="mt-4">
         <a href="/dashboard_admin" class="text-decoration-none fw-bold text-secondary text-primary-hover">
-            ⬅ Torna alla Dashboard Principale
+            Torna alla Dashboard Principale
         </a>
     </div>
 

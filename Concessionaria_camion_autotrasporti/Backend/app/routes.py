@@ -238,27 +238,52 @@ def dashboard_admin():
 @ruolo_richiesto(4)
 def toggle_utente(id_persona):
     try:
-        # Usiamo execute() normale senza .single() per evitare crash di Supabase
-        res = supabase.table('PERSONA').select('Stato_Account').eq('ID_Persona', id_persona).execute()
+        oggi = date.today().strftime("%Y-%m-%d")
         
-        if not res.data:
+        # CATTURIAMO IL MOTIVO SCRITTO DALL'ADMIN (o mettiamo un default se è vuoto)
+        motivo_blocco = request.form.get('motivo', 'Sospensione amministrativa da pannello')
+        
+        # 1. Recuperiamo l'utente
+        res_utente = supabase.table('PERSONA').select('Stato_Account', 'ID_Blocco').eq('ID_Persona', id_persona).execute()
+        
+        if not res_utente.data:
             flash("Utente non trovato nel sistema.", "danger")
             return redirect('/admin/utenti')
             
-        stato_attuale = res.data[0].get('Stato_Account', 'A')
-        if not stato_attuale:
-            stato_attuale = 'A'
+        utente = res_utente.data[0]
+        stato_attuale = utente.get('Stato_Account', 'A') or 'A'
+        id_blocco_attuale = utente.get('ID_Blocco')
             
-        # Cambiamo lo stato: se non è 'B' (Bloccato) lo facciamo diventare 'B', altrimenti torna 'A' (Attivo)
-        nuovo_stato = 'B' if stato_attuale != 'B' else 'A'
-        
-        supabase.table('PERSONA').update({'Stato_Account': nuovo_stato}).eq('ID_Persona', id_persona).execute()
-        
-        azione = "bloccato" if nuovo_stato == 'B' else "riattivato  "
-        flash(f"Account aggiornato con successo: {azione}.", "success")
-        
+        if stato_attuale != 'B':
+            # --- AZIONE: BLOCCO ---
+            nuovo_blocco = {
+                "Data_Inizio": oggi,
+                "Data_Fine": None,
+                "Motivo": motivo_blocco  # <-- INSERIAMO IL MOTIVO VERO!
+            }
+            res_blocco = supabase.table('BLOCCO').insert(nuovo_blocco).execute()
+            id_blocco_generato = res_blocco.data[0]['ID_Blocco']
+            
+            supabase.table('PERSONA').update({
+                'Stato_Account': 'B',
+                'ID_Blocco': id_blocco_generato
+            }).eq('ID_Persona', id_persona).execute()
+            
+            flash("Account bloccato e motivazione registrata nello storico!", "success")
+        else:
+            # --- AZIONE: SBLOCCO ---
+            if id_blocco_attuale:
+                supabase.table('BLOCCO').update({'Data_Fine': oggi}).eq('ID_Blocco', id_blocco_attuale).execute()
+            
+            supabase.table('PERSONA').update({
+                'Stato_Account': 'A',
+                'ID_Blocco': None
+            }).eq('ID_Persona', id_persona).execute()
+            
+            flash("Account riattivato con successo! Il blocco è stato storicizzato.", "success")
+            
     except Exception as e:
-        print(f"ERRORE BLOCCO UTENTE: {e}")
+        print(f"ERRORE BLOCCO: {e}")
         flash(f"Errore durante la modifica dell'account: {str(e)}", "danger")
         
     return redirect('/admin/utenti')
