@@ -219,7 +219,8 @@ def dashboard_admin():
         mappa_usato_telaio = {v['ID_Usato']: v['NumeroTelaio'] for v in valutazioni_tab}
         rifiuti_modelli = {}
         for esito in esiti:
-            if esito.get('Esito_Meccanico') in ['N', 'R']:
+            # Cerchiamo solo le 'P' (cioè i veicoli rifiutati dal meccanico)
+            if esito.get('Esito_Meccanico') == 'P':  
                 telaio = mappa_usato_telaio.get(esito.get('ID_Usato'))
                 if telaio:
                     mod = mappa_telaio_modello.get(telaio, 'Ignoto')
@@ -916,7 +917,7 @@ def approve_trade_in():
             return redirect('/admin_dashboard')
             
         except Exception as e:
-            print(f"🔴 ERRORE APPROVAZIONE ADMIN: {str(e)}")
+            print(f"ERRORE APPROVAZIONE ADMIN: {str(e)}")
             flash(f"Supabase ha rifiutato l'approvazione. Errore: {str(e)}", "danger")
             return redirect('/admin/approve_trade_in')
 
@@ -961,7 +962,7 @@ def approve_trade_in():
         return render_template('admin/approve_trade_in.html', perizie=perizie_completate)
         
     except Exception as e:
-        print(f"🔴 ERRORE LETTURA PERIZIE ADMIN: {str(e)}")
+        print(f"ERRORE LETTURA PERIZIE ADMIN: {str(e)}")
         flash(f"Impossibile caricare l'elenco delle perizie: {str(e)}", "danger")
         return redirect('/admin_dashboard')
 
