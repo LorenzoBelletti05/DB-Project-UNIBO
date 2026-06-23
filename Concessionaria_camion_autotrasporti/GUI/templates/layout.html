@@ -12,19 +12,23 @@
                 
                 {% if session.get('ruolo') == 4 %}
                     <a class="nav-link" href="/admin/utenti">Gestione Utenti</a>
-                    <a class="nav-link fw-bold" href="/admin/catalog">Gestione Catalogo</a>
+                    <a class="nav-link" href="/admin/catalog">Gestione Catalogo</a>
                 
                 {% elif session.get('ruolo') == 1 %}
                     <a class="nav-link" href="/area_cliente">Area Personale</a>
-                    <a class="nav-link fw-bold text-primary" href="/catalog">Catalogo Pubblico</a>
+                    <a class="nav-link" href="/catalog">Catalogo Pubblico</a>
                 
-                {% elif session.get('ruolo') == 3 %} 
+                {% elif session.get('ruolo') == 3 %}
                     <a class="nav-link" href="/catalog">Catalogo Pubblico</a>
                     <a class="nav-link" href="/salespearson">Dashboard Vendite</a>
                     <a class="nav-link" href="/transaction_wizard">Nuova Transazione</a>
                 
                 {% elif session.get('ruolo') == 2 %}
                     <a class="nav-link" href="/dashboard_mechanic">Dashboard Meccanico</a>
+                {% elif session.get('ruolo') == 5 %}                    
+                    <a class="nav-link" href="/admin/utenti">Anagrafiche</a>
+                    <a class="nav-link" href="/admin/catalog">Gestione Flotta</a>
+                    <a class="nav-link" href="/test_drive_calendar">Test Drive</a>
                 {% endif %}
                 
                 <a href="/logout" class="btn btn-outline-danger btn-sm ms-3">Esci</a>
