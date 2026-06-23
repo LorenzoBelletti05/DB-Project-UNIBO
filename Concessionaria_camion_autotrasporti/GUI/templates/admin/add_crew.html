@@ -4,67 +4,109 @@
 <div class="container mt-4 mb-5">
     <div class="row justify-content-center">
         <div class="col-md-8">
-            <div class="card shadow-sm">
+            <div class="card shadow-sm border-0">
                 <div class="card-header bg-primary text-white">
                     <h4 class="mb-0">Assumi Nuovo Dipendente</h4>
                 </div>
-                <div class="card-body p-4">
+                <div class="card-body p-4 bg-light">
                     <form method="POST" action="/admin/add_crew">
                         
-                        <!-- Scelta del Ruolo -->
-                        <div class="mb-4 p-3 bg-light border rounded">
-                            <label class="form-label fw-bold">Ruolo Aziendale</label>
-                            <select name="ruolo" class="form-select border-primary" required>
+                        <div class="mb-4 p-3 bg-white border rounded shadow-sm">
+                            <label class="form-label fw-bold text-primary">Ruolo Aziendale</label>
+                            <select name="ruolo" id="ruolo-select" class="form-select border-primary" required>
                                 <option value="" disabled selected>Seleziona la mansione...</option>
                                 <option value="3">Venditore</option>
                                 <option value="2">Meccanico</option>
                                 <option value="5">Impiegato Ufficio</option>
                             </select>
-                            <small class="text-muted">Il ruolo determinerà a quali aree del gestionale avrà accesso.</small>
+                            <small class="text-muted">Selezionando il ruolo appariranno i campi specifici da compilare.</small>
                         </div>
 
-                        <h6 class="text-muted border-bottom pb-1">Dati Anagrafici</h6>
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <label class="form-label">Nome</label>
-                                <input type="text" name="nome" class="form-control" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Cognome</label>
-                                <input type="text" name="cognome" class="form-control" required>
-                            </div>
-                        </div>
-
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <label class="form-label">Codice Fiscale</label>
-                                <input type="text" name="cf" class="form-control" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Indirizzo di Residenza</label>
-                                <input type="text" name="residenza" class="form-control" placeholder="Via, Civico, Città..." required>
-                            </div>
-                        </div>
-
-                        <h6 class="text-muted border-bottom pb-1 mt-4">Contatti e Credenziali</h6>
-                        <div class="row mb-3">
-                            <div class="col-md-4">
-                                <label class="form-label">Telefono</label>
-                                <input type="tel" name="telefono" class="form-control" required>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Email Lavorativa</label>
-                                <input type="email" name="mail" class="form-control" required>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Password</label>
-                                <input type="password" name="password" class="form-control" required>
+                        <div class="bg-white p-3 border rounded shadow-sm mb-4">
+                            <h6 class="text-muted border-bottom pb-2 fw-bold">Dati Anagrafici e Contatti</h6>
+                            <div class="row g-3 mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label small">Nome</label>
+                                    <input type="text" name="nome" class="form-control" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small">Cognome</label>
+                                    <input type="text" name="cognome" class="form-control" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small">Codice Fiscale</label>
+                                    <input type="text" name="cf" class="form-control" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small">Residenza</label>
+                                    <input type="text" name="residenza" class="form-control" placeholder="Via, Civico, Città..." required>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small">Telefono</label>
+                                    <input type="tel" name="telefono" class="form-control" required>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small">Email Lavorativa</label>
+                                    <input type="email" name="mail" class="form-control" required>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small">Password</label>
+                                    <input type="password" name="password" class="form-control" required>
+                                </div>
                             </div>
                         </div>
 
-                        <div class="d-flex justify-content-between mt-4">
-                            <a href="/admin_dashboard" class="btn btn-outline-secondary">Annulla</a>
-                            <button type="submit" class="btn btn-primary">Registra Dipendente</button>
+                        <div id="sezione-lavoratore" class="d-none bg-white p-3 border border-secondary rounded shadow-sm mb-4">
+                            <h6 class="text-secondary border-bottom pb-2 fw-bold">Dati Contrattuali Lavoratore</h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label small">Data Assunzione</label>
+                                    <input type="date" name="data_assunzione" id="input-data-ass" class="form-control">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small">Paga Mensile (€)</label>
+                                    <input type="number" step="0.01" name="stipendio" id="input-stipendio" class="form-control" placeholder="1500.00">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="sezione-meccanico" class="d-none bg-white p-3 border border-warning rounded shadow-sm mb-4">
+                            <h6 class="text-warning border-bottom pb-2 fw-bold text-dark">Impostazioni Specifiche Meccanico</h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label small">Interventi Precedenti (Partenza)</label>
+                                    <input type="number" name="totale_interventi" id="input-interventi" class="form-control" value="0">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small">Trasferte Esterne (Partenza)</label>
+                                    <input type="number" name="trasferte_esterne" id="input-trasferte" class="form-control" value="0">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="sezione-venditore" class="d-none bg-white p-3 border border-success rounded shadow-sm mb-4">
+                            <h6 class="text-success border-bottom pb-2 fw-bold text-dark">Impostazioni Specifiche Venditore</h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label small">Bonus Vendite di Partenza (€)</label>
+                                    <input type="number" step="0.01" name="bonus_vendite" id="input-bonus" class="form-control" value="0.00">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="sezione-impiegato" class="d-none bg-white p-3 border border-info rounded shadow-sm mb-4">
+                            <h6 class="text-info border-bottom pb-2 fw-bold text-dark">Impostazioni Specifiche Impiegato</h6>
+                            <div class="row g-3">
+                                <div class="col-md-12">
+                                    <label class="form-label small">Tipologia Lavoro</label>
+                                    <input type="text" name="tipologia_lavoro" id="input-tipologia" class="form-control" placeholder="Es. Amministrazione, Contabilità, Segreteria...">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-2">
+                            <a href="/admin_dashboard" class="btn btn-outline-secondary px-4">Annulla</a>
+                            <button type="submit" class="btn btn-success px-5 fw-bold">Registra Dipendente</button>
                         </div>
                     </form>
                 </div>
@@ -72,4 +114,37 @@
         </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const selectRuolo = document.getElementById('ruolo-select');
+        
+        const sezLavoratore = document.getElementById('sezione-lavoratore');
+        const sezMeccanico = document.getElementById('sezione-meccanico');
+        const sezVenditore = document.getElementById('sezione-venditore');
+        const sezImpiegato = document.getElementById('sezione-impiegato');
+
+        selectRuolo.addEventListener('change', function() {
+            const ruolo = this.value;
+
+            // Mostriamo Dati Contrattuali per tutti e 3 i dipendenti
+            if (ruolo === '2' || ruolo === '3' || ruolo === '5') {
+                sezLavoratore.classList.remove('d-none');
+            } else {
+                sezLavoratore.classList.add('d-none');
+            }
+
+            // Mostriamo o nascondiamo le sezioni specifiche in base al ruolo
+            sezMeccanico.classList.toggle('d-none', ruolo !== '2');
+            sezVenditore.classList.toggle('d-none', ruolo !== '3');
+            sezImpiegato.classList.toggle('d-none', ruolo !== '5');
+            
+            // Attiviamo/Disattiviamo i campi required
+            document.getElementById('input-interventi').required = (ruolo === '2');
+            document.getElementById('input-trasferte').required = (ruolo === '2');
+            document.getElementById('input-bonus').required = (ruolo === '3');
+            document.getElementById('input-tipologia').required = (ruolo === '5');
+        });
+    });
+</script>
 {% endblock %}

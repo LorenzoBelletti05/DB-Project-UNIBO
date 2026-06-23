@@ -9,47 +9,52 @@
         <div class="accordion" id="accordionPrenotazioni">
         {% for p in reservations %}
             <div class="accordion-item mb-3 shadow-sm border-0 rounded">
-                <h2 class="accordion-header" id="heading{{ p.ID_Prenotazione }}">
-                    <button class="accordion-button collapsed bg-light fw-bold text-primary" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ p.ID_Prenotazione }}" aria-expanded="false">
-                        {{ p.Data_Prenotazione }} | Targa: {{ p.Targa }} | Cliente: {{ p.PERSONA.Nome if p.PERSONA else 'Sconosciuto' }} {{ p.PERSONA.Cognome if p.PERSONA else '' }}
+                <h2 class="accordion-header" id="heading{{ p.id_prenotazione }}">
+                    <button class="accordion-button collapsed bg-light fw-bold text-primary" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ p.id_prenotazione }}" aria-expanded="false">
+                        {{ p.data_prenotazione }} | Targa: {{ p.targa }} | Cliente: {{ p.PERSONA.Nome if p.PERSONA else 'Sconosciuto' }} {{ p.PERSONA.Cognome if p.PERSONA else '' }}
                     </button>
                 </h2>
-                <div id="collapse{{ p.ID_Prenotazione }}" class="accordion-collapse collapse" data-bs-parent="#accordionPrenotazioni">
+                <div id="collapse{{ p.id_prenotazione }}" class="accordion-collapse collapse" data-bs-parent="#accordionPrenotazioni">
                     <div class="accordion-body">
-                        <p><strong>Descrizione problema:</strong> {{ p.Nota_Cliente }}</p>
-                        <p><strong>Ora arrivo:</strong> {{ p.Ora_Incontro }} | <strong>Telaio:</strong> {{ p.NumeroTelaio }}</p>
+                        <p><strong>Descrizione problema:</strong> {{ p.nota_cliente }}</p>
+                        <p><strong>Ora arrivo:</strong> {{ p.ora_incontro }} | <strong>Telaio:</strong> {{ p.numerotelaio }}</p>
 
                         <hr>
                         <h6 class="fw-bold mb-3 text-secondary">Assegna questo lavoro:</h6>
+                        
                         <form method="POST" action="/admin/assegna_lavoro">
-                            <input type="hidden" name="id_prenotazione" value="{{ p.ID_Prenotazione }}">
-                            <input type="hidden" name="targa" value="{{ p.Targa }}">
-                            <input type="hidden" name="data" value="{{ p.Data_Prenotazione }}">
-                            <input type="hidden" name="ora" value="{{ p.Ora_Incontro }}">
+                            <input type="hidden" name="id_prenotazione" value="{{ p.id_prenotazione }}">
+                            <input type="hidden" name="targa" value="{{ p.targa }}">
+                            <input type="hidden" name="data" value="{{ p.data_prenotazione }}">
+                            <input type="hidden" name="ora" value="{{ p.ora_incontro }}">
 
                             <div class="row g-3">
-                                <div class="col-md-4">
-                                    <label class="form-label small">Meccanico Incaricato</label>
-                                    <select class="form-select" name="id_meccanico" required>
-                                        <option value="" disabled selected>Scegli...</option>
-                                        {% for m in meccanici %}
-                                            <option value="{{ m.ID_Persona }}">{{ m.Nome }} {{ m.Cognome }}</option>
-                                        {% endfor %}
-                                    </select>
+                                <div class="col-md-3">
+                                    <label class="form-label small">N° Meccanici</label>
+                                    <input type="number" class="form-control num-meccanici-input" data-target="container-mecc-{{ p.id_prenotazione }}" name="num_meccanici" min="1" max="5" value="1" required>
                                 </div>
-                                <div class="col-md-4">
+                                
+                                <div class="col-md-5">
                                     <label class="form-label small">Nome Compito (Es. Cambio Olio)</label>
                                     <input type="text" class="form-control" name="nome_compito" placeholder="Breve titolo" required maxlength="20">
                                 </div>
+                                
                                 <div class="col-md-4">
-                                    <label class="form-label small">Durata Stimata (Ore)</label>
+                                    <label class="form-label small">Durata Stimata (Ore cad.)</label>
                                     <input type="number" class="form-control" name="durata" min="1" max="50" value="2" required>
                                 </div>
                             </div>
+
+                            <div class="row mt-3">
+                                <div class="col-md-12" id="container-mecc-{{ p.id_prenotazione }}">
+                                    </div>
+                            </div>
+
                             <div class="mt-4 text-end">
                                 <button type="submit" class="btn btn-success px-4">Conferma e Assegna</button>
                             </div>
                         </form>
+                        
                     </div>
                 </div>
             </div>
@@ -61,4 +66,58 @@
         </div>
     {% endif %}
 </div>
+
+<select id="template-meccanici" class="d-none">
+    <option value="" disabled selected>Scegli meccanico...</option>
+    {% for m in meccanici %}
+        <option value="{{ m.ID_Persona }}">{{ m.Nome }} {{ m.Cognome }}</option>
+    {% endfor %}
+</select>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Preleva l'HTML base delle opzioni dal template invisibile
+        const opzioniMeccanici = document.getElementById('template-meccanici').innerHTML;
+
+        // Trova tutti gli input dei numeri (uno per ogni prenotazione mostrata)
+        const inputNumeri = document.querySelectorAll('.num-meccanici-input');
+
+        // Funzione core: legge il numero e genera le select corrispondenti
+        function aggiornaTendine(inputElement) {
+            const numero = parseInt(inputElement.value) || 1;
+            const targetId = inputElement.getAttribute('data-target');
+            const contenitore = document.getElementById(targetId);
+            
+            // Pulisce l'area
+            contenitore.innerHTML = '';
+
+            // Genera una riga con tendina per ogni meccanico richiesto
+            for (let i = 1; i <= numero; i++) {
+                const div = document.createElement('div');
+                div.className = 'mb-2 row align-items-center';
+                div.innerHTML = `
+                    <div class="col-md-3 text-end">
+                        <label class="form-label small fw-bold text-muted m-0">Incaricato ${i}:</label>
+                    </div>
+                    <div class="col-md-9">
+                        <select class="form-select border-primary" name="id_meccanico" required>
+                            ${opzioniMeccanici}
+                        </select>
+                    </div>
+                `;
+                contenitore.appendChild(div);
+            }
+        }
+
+        // Setup iniziale: fa comparire 1 tendina in tutte le schede all'apertura
+        inputNumeri.forEach(input => {
+            aggiornaTendine(input);
+            
+            // "Ascolta" se l'amministratore cambia il numero usando le freccette e aggiorna
+            input.addEventListener('input', function() {
+                aggiornaTendine(this);
+            });
+        });
+    });
+</script>
 {% endblock %}
