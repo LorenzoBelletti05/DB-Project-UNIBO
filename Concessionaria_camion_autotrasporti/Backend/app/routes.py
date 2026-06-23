@@ -219,7 +219,8 @@ def dashboard_admin():
         mappa_usato_telaio = {v['ID_Usato']: v['NumeroTelaio'] for v in valutazioni_tab}
         rifiuti_modelli = {}
         for esito in esiti:
-            if esito.get('Esito_Meccanico') == 'P':  # <-- ECCOLA QUI!
+            # Cerchiamo solo le 'P' (cioè i veicoli rifiutati dal meccanico)
+            if esito.get('Esito_Meccanico') == 'P':  
                 telaio = mappa_usato_telaio.get(esito.get('ID_Usato'))
                 if telaio:
                     mod = mappa_telaio_modello.get(telaio, 'Ignoto')
