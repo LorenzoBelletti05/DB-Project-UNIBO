@@ -22,6 +22,9 @@
                     <a class="nav-link" href="/catalog">Catalogo Pubblico</a>
                     <a class="nav-link" href="/salespearson">Dashboard Vendite</a>
                     <a class="nav-link" href="/transaction_wizard">Nuova Transazione</a>
+                
+                {% elif session.get('ruolo') == 2 %}
+                    <a class="nav-link" href="/dashboard_mechanic">Dashboard Meccanico</a>
                 {% endif %}
                 
                 <a href="/logout" class="btn btn-outline-danger btn-sm ms-3">Esci</a>
