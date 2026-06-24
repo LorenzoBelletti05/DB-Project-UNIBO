@@ -48,7 +48,10 @@
                         <select name="numero_telaio" class="form-select border-0 bg-light" id="veicoloSelect" required>
                             <option value="" disabled selected>Seleziona veicolo dal catalogo...</option>
                             {% for v in veicoli %}
-                                <option value="{{ v.NumeroTelaio }}">{{ v.Modello }} (Targa: {{ v.Targa }})</option>
+                                <option value="{{ v.NumeroTelaio }}">
+                                    {{ v.Modello }} (Targa: {{ v.Targa }})
+                                    {% if v.Stato_Disponibilita == 'P' %} - PRENOTATO PER TEST DRIVE {% endif %}
+                                </option>
                             {% endfor %}
                         </select>
                         <label for="veicoloSelect" class="fw-bold text-primary">Veicolo in prova</label>

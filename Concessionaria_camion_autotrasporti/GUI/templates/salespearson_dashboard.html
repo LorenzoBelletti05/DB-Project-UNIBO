@@ -30,9 +30,9 @@
         <div class="col-md-4">
             <div class="card text-white bg-warning shadow-sm h-100 border-0 rounded-4">
                 <div class="card-body">
-                    <h6 class="card-title text-uppercase fw-bold text-dark opacity-75">Trattative Aperte</h6>
+                    <h6 class="card-title text-uppercase fw-bold text-dark opacity-75">Transazioni Concluse</h6>
                     <h2 class="mb-0 fw-bold text-dark">{{ quotes|length }}</h2>
-                    <small class="text-dark">In attesa di firma</small>
+                    <small class="text-dark">Contratti registrati nel sistema</small>
                 </div>
             </div>
         </div>
@@ -51,7 +51,7 @@
         <div class="col-lg-6 mb-4">
             <div class="card shadow-sm border-0 h-100 rounded-4 overflow-hidden">
                 <div class="card-header bg-warning text-dark fw-bold d-flex justify-content-between align-items-center py-3 border-0">
-                    <span class="mb-0">Trattative Recenti</span>
+                    <span class="mb-0">Transazioni Recenti</span>
                     <span class="badge bg-dark">{{ quotes|length }}</span>
                 </div>
                 <div class="card-body p-0">
@@ -59,7 +59,7 @@
                         <table class="table table-hover align-middle mb-0">
                             <thead class="table-light">
                                 <tr>
-                                    <th class="ps-3">ID Prat.</th>
+                                    <th class="ps-3">ID Contratto</th>
                                     <th>Cliente</th>
                                     <th>Veicolo</th>
                                     <th>Stato</th>
@@ -70,14 +70,16 @@
                                 <tr>
                                     <td class="fw-bold ps-3">#{{ quote.id }}</td>
                                     <td>{{ quote.cliente }}</td>
-                                    <td>{{ quote.veicolo }}</td>
-                                    <td><span class="badge bg-warning text-dark">In attesa</span></td>
+                                    <td>
+                                        {{ quote.veicolo }} <br>
+                                        <small class="text-muted border rounded px-1">{{ quote.tipo }}</small>
+                                    </td>
+                                    <td><span class="badge bg-success shadow-sm">Conclusa</span></td>
                                 </tr>
                                 {% else %}
                                 <tr>
                                     <td colspan="4" class="text-center py-5 text-muted">
-                                        <p class="mb-0">Nessuna trattativa attiva al momento.</p>
-                                        <a href="/transaction_wizard" class="btn btn-sm btn-outline-success mt-2">Apri un nuovo preventivo</a>
+                                        <p class="mb-0">Nessuna transazione registrata di recente.</p>
                                     </td>
                                 </tr>
                                 {% endfor %}
