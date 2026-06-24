@@ -71,29 +71,29 @@
     </div>
 
     <div class="row mb-4">
-    <div class="col-md-6">
-        <div class="card shadow-sm border-0 h-100">
-            <div class="card-header bg-dark text-white fw-bold pt-3 pb-2">Performance Mese Corrente (Giugno 2026)</div>
-            <div class="card-body bg-light">
-                <ul class="list-group list-group-flush rounded-3">
-                    <li class="list-group-item d-flex justify-content-between align-items-center">Veicoli Venduti <span class="badge bg-primary rounded-pill">{{ report_mensile.vendite }}</span></li>
-                    <li class="list-group-item d-flex justify-content-between align-items-center">Veicoli Noleggiati <span class="badge bg-info text-dark rounded-pill">{{ report_mensile.noleggi }}</span></li>
-                    <li class="list-group-item d-flex justify-content-between align-items-center">Valutazioni Usato <span class="badge bg-success rounded-pill">{{ report_mensile.valutazioni }}</span></li>
-                    <li class="list-group-item d-flex justify-content-between align-items-center">Manutenzioni Officina <span class="badge bg-warning text-dark rounded-pill">{{ report_mensile.interventi }}</span></li>
-                </ul>
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-dark text-white fw-bold pt-3 pb-2">Performance Mese Corrente (Giugno 2026)</div>
+                <div class="card-body bg-light">
+                    <ul class="list-group list-group-flush rounded-3">
+                        <li class="list-group-item d-flex justify-content-between align-items-center">Veicoli Venduti <span class="badge bg-primary rounded-pill">{{ report_mensile.vendite }}</span></li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">Veicoli Noleggiati <span class="badge bg-info text-dark rounded-pill">{{ report_mensile.noleggi }}</span></li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">Valutazioni Usato <span class="badge bg-success rounded-pill">{{ report_mensile.valutazioni }}</span></li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">Manutenzioni Officina <span class="badge bg-warning text-dark rounded-pill">{{ report_mensile.interventi }}</span></li>
+                    </ul>
+                </div>
             </div>
         </div>
-    </div>
 
-    <div class="col-md-6">
-        <div class="card shadow-sm border-0 h-100">
-            <div class="card-header bg-primary text-white fw-bold pt-3 pb-2">Classifica Clienti Più Attivi</div>
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-primary text-white fw-bold pt-3 pb-2">Classifica Clienti Più Attivi</div>
                 <div class="card-body p-0">
                     <table class="table table-hover align-middle mb-0">
                         <thead class="table-light">
                             <tr>
                                 <th>Cliente</th>
-                                <th class="text-end">Operazioni Totali (Acquisti/Noleggi/Officina)</th>
+                                <th class="text-end">Operazioni Totali</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -109,6 +109,67 @@
                             {% endfor %}
                         </tbody>
                     </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="card shadow-sm border-0 border-start border-danger border-4">
+                <div class="card-header bg-white fw-bold pt-3 pb-2 text-danger">
+                    Allerta Costi: Modelli Critici (> 5 Interventi di Manutenzione)
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-4">Marca e Modello</th>
+                                <th class="text-center">Totale Riparazioni</th>
+                                <th class="text-end pe-4">Spesa Totale Generata (€)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for r in risultati_riparazioni %}
+                            <tr>
+                                <td class="ps-4 fw-bold text-secondary">{{ r.Marca }} {{ r.Modello }}</td>
+                                <td class="text-center">
+                                    <span class="badge bg-danger rounded-pill fs-6">{{ r.Totale_Riparazioni }}</span>
+                                </td>
+                                <td class="text-end pe-4 text-dark fw-bold">
+                                    € {{ "%.2f"|format(r.Spesa_Totale) }}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="3" class="text-center py-4 text-success fw-bold">
+                                    <i class="bi bi-check-circle me-2"></i>Nessun modello ha superato la soglia di allerta (5 interventi).
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row mt-5 mb-4 container mx-auto">
+        <div class="col-12"><h4 class="fw-bold border-bottom pb-2">Area Logistica e Officina</h4></div>
+        <div class="col-md-6 mt-3">
+            <div class="card shadow-sm border-0 border-start border-primary border-4 h-100">
+                <div class="card-body p-4">
+                    <h5 class="fw-bold text-primary">Gestione Prenotazioni</h5>
+                    <p class="text-muted small">Vedi le richieste dei clienti e assegna i compiti ai meccanici.</p>
+                    <a href="/admin/reservations" class="btn btn-outline-primary w-100">Vedi Prenotazioni in Sospeso</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 mt-3">
+            <div class="card shadow-sm border-0 border-start border-dark border-4 h-100">
+                <div class="card-body p-4">
+                    <h5 class="fw-bold text-dark">Approvazione Usato</h5>
+                    <p class="text-muted small">Esamina le perizie dei meccanici e convalida l'acquisto dei veicoli.</p>
+                    <a href="/admin/approve_trade_in" class="btn btn-dark w-100">Vedi Perizie da Approvare</a>
                 </div>
             </div>
         </div>
@@ -143,39 +204,17 @@
         options: { cutout: '65%' }
     });
 
-    // 3. CHART MECCANICI (Nuovo!)
+    // 3. CHART MECCANICI
     new Chart(document.getElementById('chartMeccanici'), {
         type: 'bar',
         data: { labels: l_meccanici, datasets: [{ label: 'Interventi Assegnati', data: d_meccanici, backgroundColor: '#6f42c1', borderRadius: 4 }] },
         options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
     });
 
-    // 4. CHART MODELLI RIFIUTATI (Nuovo!)
+    // 4. CHART MODELLI RIFIUTATI
     new Chart(document.getElementById('chartRifiuti'), {
         type: 'pie',
         data: { labels: l_rifiuti, datasets: [{ data: d_rifiuti, backgroundColor: ['#dc3545', '#fd7e14', '#ffc107', '#6c757d'], borderWidth: 0 }] }
     });
 </script>
-
-<div class="row mt-5 mb-4 container mx-auto">
-    <div class="col-12"><h4 class="fw-bold border-bottom pb-2">Area Logistica e Officina</h4></div>
-    <div class="col-md-6 mt-3">
-        <div class="card shadow-sm border-0 border-start border-primary border-4 h-100">
-            <div class="card-body p-4">
-                <h5 class="fw-bold text-primary">Gestione Prenotazioni</h5>
-                <p class="text-muted small">Vedi le richieste dei clienti e assegna i compiti ai meccanici.</p>
-                <a href="/admin/reservations" class="btn btn-outline-primary w-100">Vedi Prenotazioni in Sospeso</a>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-6 mt-3">
-        <div class="card shadow-sm border-0 border-start border-dark border-4 h-100">
-            <div class="card-body p-4">
-                <h5 class="fw-bold text-dark">Approvazione Usato</h5>
-                <p class="text-muted small">Esamina le perizie dei meccanici e convalida l'acquisto dei veicoli.</p>
-                <a href="/admin/approve_trade_in" class="btn btn-dark w-100">Vedi Perizie da Approvare</a>
-            </div>
-        </div>
-    </div>
-</div>
 {% endblock %}
