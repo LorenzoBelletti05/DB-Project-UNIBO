@@ -185,7 +185,7 @@ def dashboard_admin():
         # Ordiniamo i clienti dal più attivo
         clienti_attivi = sorted(clienti_attivi, key=lambda x: x['totale_operazioni'], reverse=True)[:5]
 
-        # --- GRAFICI PRECEDENTI (Venditori, Modelli, Meccanici, Rifiuti) ---
+        # Query 5.5.6 ==> Venditori con le migliori performance
         conteggio_venditori = {}
         for vendita in vendite:
             id_v = vendita.get('ID_Persona')
@@ -195,6 +195,7 @@ def dashboard_admin():
         ord_venditori = sorted(conteggio_venditori.items(), key=lambda x: x[1], reverse=True)
         labels_venditori = [v[0] for v in ord_venditori]; valori_venditori = [v[1] for v in ord_venditori]
 
+        # Query 5.5.5 ==> Modelli dei veicoli più venduti
         contratti_venduti_ids = [v['ID_Contratto'] for v in vendite if v.get('ID_Contratto') is not None]
         conteggio_modelli = {}
         for veicolo in tutti_veicoli:
@@ -204,6 +205,7 @@ def dashboard_admin():
         ord_modelli = sorted(conteggio_modelli.items(), key=lambda x: x[1], reverse=True)
         labels_modelli = [m[0] for m in ord_modelli]; valori_modelli = [m[1] for m in ord_modelli]
 
+        # Query 5.5.7 ==> Meccanici più attivi
         tutti_i_compiti = supabase.table('COMPITO').select('ID_Persona').execute().data
         conteggio_meccanici = {}
         for compito in tutti_i_compiti:
@@ -214,6 +216,7 @@ def dashboard_admin():
         ord_meccanici = sorted(conteggio_meccanici.items(), key=lambda x: x[1], reverse=True)
         labels_meccanici = [m[0] for m in ord_meccanici]; valori_meccanici = [m[1] for m in ord_meccanici]
 
+        # Query 5.5.8 ==> Tasso di rifiuto dei veicoli usato
         esiti = supabase.table('Esito_MV').select('ID_Usato, Esito_Meccanico').execute().data
         valutazioni_tab = supabase.table('VALUTAZIONE_USATO').select('ID_Usato, NumeroTelaio').execute().data
         mappa_usato_telaio = {v['ID_Usato']: v['NumeroTelaio'] for v in valutazioni_tab}
