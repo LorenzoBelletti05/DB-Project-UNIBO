@@ -67,4 +67,10 @@ Per testare le aree aziendali, devi utilizzare account preesistenti nel database
 - Ruolo 4: Amministratore (Dashboard completa, statistiche e gestione dipendenti)
 - Ruolo 5: Impiegato Ufficio (Gestione base catalogo)
 
-Buon test!
+Credenziali per l'accesso:
+	mail			password
+-cliente@mail.it		pass
+-meccanico@mail.it		pass
+-venditore@mail.it		pass
+-admin@mail.it			pass
+-impiegato@mail.it		pass
