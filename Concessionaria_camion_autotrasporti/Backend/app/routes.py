@@ -228,7 +228,7 @@ def dashboard_admin():
         ord_rifiuti = sorted(rifiuti_modelli.items(), key=lambda x: x[1], reverse=True)
         labels_rifiuti = [r[0] for r in ord_rifiuti]; valori_rifiuti = [r[1] for r in ord_rifiuti]
 
-        # --- NUOVA QUERY: COSTI MANUTENZIONE VEICOLI CRITICI (> 5 Interventi) ---
+        # QUERY 5.5.9 ==> Modelli di veicoli con il tasso di riparazioni più alto (requisito minimo >5 riparazioni)
         interventi = supabase.table('INTERVENTO').select('ID_Intervento, Costo').eq('Tipologia_Intervento', 'Manutenzione').execute().data
         id_interventi = [i['ID_Intervento'] for i in interventi]
         
@@ -237,13 +237,11 @@ def dashboard_admin():
             prenotazioni_manutenzione = supabase.table('PRENOTAZIONE').select('NumeroTelaio, ID_Intervento').in_('ID_Intervento', id_interventi).execute().data
             marche = supabase.table('MARCA').select('ID_Marca, Nome').execute().data
 
-            # Creiamo le mappe di supporto
             costo_intervento = {i['ID_Intervento']: i.get('Costo', 0) for i in interventi}
             telaio_da_intervento = {p['ID_Intervento']: p['NumeroTelaio'] for p in prenotazioni_manutenzione if p.get('ID_Intervento')}
             info_veicolo = {v['NumeroTelaio']: (v.get('Modello', 'Ignoto'), v.get('ID_Marca')) for v in tutti_veicoli}
             nome_marca = {m['ID_Marca']: m.get('Nome', 'Ignota') for m in marche}
 
-            # Calcolo aggregato in memoria
             stats_riparazioni = {}
             for id_int, costo in costo_intervento.items():
                 telaio = telaio_da_intervento.get(id_int)
@@ -258,9 +256,7 @@ def dashboard_admin():
                     stats_riparazioni[chiave]['totale'] += 1
                     stats_riparazioni[chiave]['spesa'] += float(costo or 0.0)
 
-            # Filtriamo (HAVING COUNT > 5) e creiamo la lista per l'HTML
             for chiave, dati in stats_riparazioni.items():
-                # ATTENZIONE: per provare subito se funziona metti "> 0", altrimenti usa "> 5" come richiesto
                 if dati['totale'] > 5:  
                     risultati_riparazioni.append({
                         'Modello': dati['modello'],
@@ -269,7 +265,6 @@ def dashboard_admin():
                         'Spesa_Totale': round(dati['spesa'], 2)
                     })
 
-            # Ordiniamo per totale riparazioni DESC
             risultati_riparazioni = sorted(risultati_riparazioni, key=lambda x: x['Totale_Riparazioni'], reverse=True)
 
     except Exception as e:
@@ -279,7 +274,7 @@ def dashboard_admin():
         labels_meccanici, valori_meccanici, labels_rifiuti, valori_rifiuti = [], [], [], []
         report_mensile = {"vendite": 0, "noleggi": 0, "valutazioni": 0, "interventi": 0}
         clienti_attivi = []
-        risultati_riparazioni = [] # <-- Aggiunto fallback per evitare errori in HTML in caso di crash
+        risultati_riparazioni = []
 
     return render_template('admin/admin_dashboard.html', 
                            veicoli_catalogo=veicoli_catalogo, interventi_aperti=interventi_aperti, valutazioni_sospeso=valutazioni_sospeso,
@@ -288,7 +283,7 @@ def dashboard_admin():
                            labels_meccanici=labels_meccanici, valori_meccanici=valori_meccanici,
                            labels_rifiuti=labels_rifiuti, valori_rifiuti=valori_rifiuti,
                            report_mensile=report_mensile, clienti_attivi=clienti_attivi,
-                           risultati_riparazioni=risultati_riparazioni) # <-- AGGIUNTA QUI PER PASSARE I DATI ALLA
+                           risultati_riparazioni=risultati_riparazioni)
 @main.route('/admin/toggle_utente/<int:id_persona>', methods=['POST'])
 @ruolo_richiesto([4, 5])
 def toggle_utente(id_persona):
